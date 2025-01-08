@@ -3,7 +3,7 @@
 ## ReSTIR
 
 ### Motivation
-Spatiotemporal Reservoir Resampling ([ReSTIR](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)), introduced by Bitterli et al. in 2020, enables dynamic direct lighting calculations for a large number of light sources in realtime. The algorithm enhances raytracing and is designed to work with a variety of light sources such as point lights and area lights. ReSTIR has been implemented in state of the art engines such as Unreal Engine 5 and the paper is discussed in the Interactive CG lecture at KIT. The interesting theory and practical application interest us. We therefore want to use this Practical to gain hands on experience with this algorithm.
+Spatiotemporal Reservoir Resampling ([ReSTIR](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)), introduced by Bitterli et al. in 2020, enables dynamic direct lighting calculations for a large number of light sources in realtime. The algorithm enhances raytracing and is designed to work with a variety of light sources such as point lights and area lights. ReSTIR has been implemented in state of the art engines such as Unreal Engine 5 and the paper is discussed in the Interactive CG lecture at KIT. Both theory and practical application are interesting for us. We therefore want to use this practical course to gain hands on experience with this algorithm.
 
 ### Overview
 In the original paper, ReSTIR is used for direct illumination. The algorithm works in screen space and operates in two steps:
@@ -36,15 +36,18 @@ The initial steps are implemented by pair programming as subsequent steps depend
 The final presentation will also be created as teamwork.
 
 The extensions are then split between the participants. The preliminary assignment is as follows:
+
 Dominik:
 - resampling and direct illumination
 - spatial reuse
+
 Felix:
 - temporal reuse and reprojection
 - performance analysis
 - visual results
+  
 In case some of these prove to be significantly more challenging than others we would like to be able to change these assignments. We will however supply an updated assignment in that case.
 
 ### Students
 - Felix Mühlenberend
-- Dominik
+- Dominik Wüst
