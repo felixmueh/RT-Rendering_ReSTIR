@@ -3,19 +3,19 @@
 ## ReSTIR
 
 ### Motivation
-Spatiotemporal Reservoir Resampling ([ReSTIR](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)), introduced by Bitterli et al. in 2020, enables dynamic direct lighting calculations for a large number of light sources in realtime. The algorithm enhances raytracing and is designed to work with a variety of light sources such as point lights and area lights. ReSTIR has ben implemented in state of the art engines such as Unreal Engine 5 and the paper is discussed in the Interactive CG lecture at KIT. The interesting theory and practical application interests us. We therefore want to use this Practical to gain hands on experience with this algorithm.
+Spatiotemporal Reservoir Resampling ([ReSTIR](https://research.nvidia.com/sites/default/files/pubs/2020-07_Spatiotemporal-reservoir-resampling/ReSTIR.pdf)), introduced by Bitterli et al. in 2020, enables dynamic direct lighting calculations for a large number of light sources in realtime. The algorithm enhances raytracing and is designed to work with a variety of light sources such as point lights and area lights. ReSTIR has been implemented in state of the art engines such as Unreal Engine 5 and the paper is discussed in the Interactive CG lecture at KIT. The interesting theory and practical application interest us. We therefore want to use this Practical to gain hands on experience with this algorithm.
 
 ### Overview
 In the original paper, ReSTIR is used for direct illumination. The algorithm works in screen space and operates in two steps:
 
-First, points on light sources are sampled and stroed in a per-pixel reservoir. The samples weights are then calculated from the unshadowed contribution to their respective pixel. This requires evaluating the BRDF but not tracing rays.
+First, points on light sources are sampled and stored in a per-pixel reservoir. The samples weights are then calculated from the unshadowed contribution to their respective pixel. This requires evaluating the BRDF but not tracing rays.
 
 Subsequently the resampling is performed. A final sample is drawn at random from the reservoir based on the sample weights. The sample is then used for estimating the direct illumination by tracing a shadow ray.
 
 The strength of this algorithm is its ability to leverage existing samples by utilizing the last frames reservoir (temporal reuse) as well as combining reservoirs from adjacent pixels (spatial reuse).
 
 ### Key Objectives
-- **Light sampling**: Currently the framework does not provide the functionality to sample points on light sources. Therefore the first step is to add a buffer for emissive geometry, thereby enableing uniform sampling of points on area light sources.
+- **Light sampling**: Currently the framework does not provide the functionality to sample points on light sources. Therefore the first step is to add a buffer for emissive geometry, thereby enabling uniform sampling of points on area light sources.
 - **Reservoir creation**: A screen space buffer needs to be allocated for the reservoirs a sampling pass needs to be added to fill the reservoirs with light samples and calculate the corresponding weights.
 - **Resampling**: A lighting pass needs to be implemented to calculate the direct illumination for each pixel by resampling from the reservoir.
 - **Spatial reuse**: To utilize samples from nearby pixels, reservoirs need to be combined in a spatial neighbourhood before resampling.
@@ -35,7 +35,7 @@ The initial steps are implemented by pair programming as subsequent steps depend
 - Reservoir creation (this is required for the next step)
 The final presentation will also be created as teamwork.
 
-The extensions are then split between the participants. The preliminary assignent is as follows:
+The extensions are then split between the participants. The preliminary assignment is as follows:
 Dominik:
 - resampling and direct illumination
 - spatial reuse
@@ -43,7 +43,7 @@ Felix:
 - temporal reuse and reprojection
 - performance analysis
 - visual results
-In case some of these prove to be significantly more challanging than others we would like to be able to change these assignments. We will however supply an updated assignment in that case.
+In case some of these prove to be significantly more challenging than others we would like to be able to change these assignments. We will however supply an updated assignment in that case.
 
 ### Students
 - Felix Mühlenberend
