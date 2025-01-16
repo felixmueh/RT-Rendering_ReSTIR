@@ -1,5 +1,6 @@
 # Ignore the data directory
 data/
+Assignment4
 
 # Ignore build directories
 /build/
