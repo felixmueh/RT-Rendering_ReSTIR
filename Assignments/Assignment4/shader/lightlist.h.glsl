@@ -60,4 +60,18 @@ uint sampleTriangle(float rnd) {
 }
 
 
+float min_dist_to_triangle_vertices() {
+    float min_dist = 1e30;
+    for (int idx = 0; idx < emissiveTriangles.length(); idx++) {
+        vec3 v0, v1, v2;
+        unpackEmissiveTriangle(emissiveTriangles[idx], v0, v1, v2);
+
+        min_dist = min(min_dist, distance(v0, P));
+        min_dist = min(min_dist, distance(v1, P));
+        min_dist = min(min_dist, distance(v2, P));
+    }
+    return min_dist;
+}
+
+
 #endif // GLSL_LIGHTLIST
