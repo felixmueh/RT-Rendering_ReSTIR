@@ -35,7 +35,6 @@ uniform float objMatShininess;
 
 uniform int width, height;
 
-
 //uniform sampler2D tShadowMap; 
 //in vec4 posWS;
 //in vec4 texCoordSM;
@@ -47,6 +46,7 @@ uniform int width, height;
 #include "envmap.h.glsl"
 #include "rng.h.glsl"
 #include "common.h.glsl"
+#include "lightlist.h.glsl"
 
 //taken from: https://gist.github.com/dpiponi/cb585cfc36462ff679e93c5024717c5d
 
@@ -97,6 +97,20 @@ void main(void)
     out_pos = vec4(P, 1.0f);
     out_normal = vec4(N, 1.0f);
 
+    GpuEmissiveTriangle triangle = emissiveTriangles[0];
+    vec3 p1,p2,p3,emission;
+    unpackEmissiveTriangle(triangle, p1, p2, p3, emission);
+    
+    vec3 dir = normalize(p2-P);
+    Ray r = createRay(P + N * 1e-5, dir, 0, 1e30);
+    // cast shadow ray, accumulate lighting if no intersection
+    if ( !traceRay( r ) ) {
+        out_color.xyz = emission;
+    }
+
+
+
+/*
     vec3 contrib = vec3(0);
     vec3 pos = P;
     
@@ -104,7 +118,6 @@ void main(void)
     vec3 thp = vec3(1) / pdfSquareToUniformHemisphere(dir);
 
     Ray r = createRay(pos + N * 1e-5, dir, 0, 1e30);
-
     // cast shadow ray, accumulate lighting if no intersection
     if ( !traceRay( r ) ) {
         contrib += thp * envmapGet(dir);
@@ -125,4 +138,7 @@ void main(void)
     // labertian cosine of RTE
     float cosTheta = max(dot(dir, N), 0.0);
     out_color.xyz = objMatAmbient * contrib * cosTheta;
+
+    */
+
 }

@@ -16,6 +16,8 @@
 
 #include "opengl_debug.h"
 #include "shader/shared.h.glsl"
+#include "lightlist.h"
+
 
 extern "C" {
 #ifdef _WIN32
@@ -157,6 +159,8 @@ protected:
   FramebufferObject pDeferredFBO;
   Renderbuffer pDeferredRenderBuffer;
 
+	LightList lights;
+
 public:
   CRender() {
     initializeOpenGLDebugCallback();
@@ -199,15 +203,20 @@ public:
   // load 3d models
   //
   void loadModels() {
-    scene = new Scene(texMan);
-    envmap = new EnvMap();
-    const char *attribs[3] = {"in_position", "in_normal", "in_texcoord"};
+      scene = new Scene(texMan);
+      envmap = new EnvMap();
+      const char* attribs[3] = { "in_position", "in_normal", "in_texcoord" };
 
-    envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
+      envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
-    scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
-                   (const char **)attribs, "cbox.obj", "./data/", true);
-    scene->buildBVH(0);
+      scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+          (const char**)attribs, "cbox.obj", "./data/", true);
+      scene->buildBVH(0);
+
+      vector<CpuEmissiveTriangle> emissiveTris;
+      emissiveTris.push_back(CpuEmissiveTriangle(vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(1, 1, 1)));
+      emissiveTris.push_back(CpuEmissiveTriangle(vec3(1, 0, 0), vec3(1, 1, 0), vec3(0, 1, 0), vec3(1, 1, 1)));
+      lights.initialize(emissiveTris);
   }
 
   //
@@ -313,13 +322,16 @@ public:
   }
 
   void firstFramePrep() {
-    scene->uploadBVH2GPU(width, height);
-    scene->setBVHShaderUniforms(&prgRender);
+      scene->uploadBVH2GPU(width, height);
+      scene->setBVHShaderUniforms(&prgRender);
 
-    loadShaders();
+      loadShaders();
 
-    mat4 matM;
-    camera.computeMatrices(&trackball, matM, 0);
+      mat4 matM;
+      camera.computeMatrices(&trackball, matM, 0);
+
+      lights.uploadLightList2GPU();
+      lights.setLightListShaderUniforms(&prgRender);
   }
 
   //
@@ -529,6 +541,7 @@ public:
     GLenum buffersCam[] = {(GLenum)camRenderTarget};
     glDrawBuffers(1, buffersCam);
 
+
     // CheckGLError();
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
@@ -559,6 +572,7 @@ public:
     envmap->renderSkybox(camera.matMVP, mat, camera.camPos);
 
     prgPostProc.bind();
+
 
     BINDOGLTEX(prgPostProc, "tColor", tGColor, GL_TEXTURE0);
     BINDOGLTEX(prgPostProc, "tPosition", tGPosition, GL_TEXTURE1);

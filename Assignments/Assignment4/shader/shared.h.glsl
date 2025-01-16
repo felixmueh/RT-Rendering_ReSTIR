@@ -21,6 +21,10 @@
 
 #endif
 
+struct GpuEmissiveTriangle {
+    FLOAT data[12]; // Stores (p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, emission.x, emission.y, emission.z)
+};
+
 #undef FLOAT
 #undef UINT
 #undef VEC3
