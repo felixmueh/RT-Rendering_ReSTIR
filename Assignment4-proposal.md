@@ -51,3 +51,10 @@ In case some of these prove to be significantly more challenging than others we 
 ### Students
 - Felix Mühlenberend
 - Dominik Wüst
+
+# TODOs
+- Add emissive triangles to scene (cbox)
+- Initialize light list
+- Resampling / Environment map / lightlist
+- Spacial / temporal datastructures
+- Spacial / temporal reuse
