@@ -51,5 +51,13 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
     return sampledPoint;
 }
 
+uint sampleTriangle(float rnd) {
+  uint i = 0;
+  while(emissiveCDF[i] < rnd) {
+    i++;
+  }
+  return i;
+}
+
 
 #endif // GLSL_LIGHTLIST

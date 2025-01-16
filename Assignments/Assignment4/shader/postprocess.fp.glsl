@@ -38,7 +38,7 @@ void main(void)
     }
     if (rendermode == 2) {
         // draw position
-        result.xyz = 0.5f * tpos.xyz + vec3(0.5);
+        result.xyz = tpos.xyz;
         return;
     }
 
