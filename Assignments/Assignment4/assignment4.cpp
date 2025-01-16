@@ -17,6 +17,7 @@
 #include "opengl_debug.h"
 #include "shader/shared.h.glsl"
 #include "lightlist.h"
+#include "cbox.h"
 
 
 extern "C" {
@@ -213,9 +214,9 @@ public:
           (const char**)attribs, "cbox.obj", "./data/", true);
       scene->buildBVH(0);
 
-      vector<CpuEmissiveTriangle> emissiveTris;
-      emissiveTris.push_back(CpuEmissiveTriangle(vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(1, 1, 1)));
-      emissiveTris.push_back(CpuEmissiveTriangle(vec3(1, 0, 0), vec3(1, 1, 0), vec3(0, 1, 0), vec3(1, 1, 1)));
+      vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
+      // vector<CpuEmissiveTriangle> emissiveTris;
+      // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
       lights.initialize(emissiveTris);
   }
 
