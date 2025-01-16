@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16.0 FATAL_ERROR)
 project(Assignment4)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_executable(${PROJECT_NAME} "assignment4.cpp" "lightlist.h" "lightlist.cpp")
 target_link_libraries(${PROJECT_NAME} PRIVATE GLF)
 
