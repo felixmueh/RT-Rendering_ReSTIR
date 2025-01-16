@@ -17,10 +17,15 @@
 #include "shader/shared.h.glsl"
 #include "opengl_debug.h"
 
-extern "C"
-{
-	_declspec(dllexport) DWORD NvOptimusEnablement = 1;
-	_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+extern "C" {
+#ifdef _WIN32
+	__declspec(dllexport) unsigned int NvOptimusEnablement = 1;
+	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+#else
+	__attribute__((visibility("default"))) unsigned int NvOptimusEnablement = 1;
+	__attribute__((
+		visibility("default"))) int AmdPowerXpressRequestHighPerformance = 1;
+#endif
 }
 
 char applicationTitle[128] = "Assignment4";
