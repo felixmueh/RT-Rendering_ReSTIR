@@ -92,7 +92,7 @@ void main(void)
 {
     Rng rng;
     uint FragIdx = uint(gl_FragCoord.x + gl_FragCoord.y * width);
-    rngInit(rng, frameIdx, FragIdx);
+    rngInit(rng, uint64_t(frameIdx), uint64_t(FragIdx));
 
     out_pos = vec4(P, 1.0f);
     out_normal = vec4(N, 1.0f);

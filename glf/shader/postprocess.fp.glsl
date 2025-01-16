@@ -17,27 +17,7 @@ uniform int maxMultiSamples; /*## Multisampling 16 1 16 */
 
 vec4 resolveTexel( vec2 texcoord )
 {
-	vec4 pix;
-
-	if ( useMultisampling > 0 )
-	{
-		ivec2 tc;
-		tc.x = int( texcoord.x * float( tOffScreenBufferWidth ) );
-		tc.y = int( texcoord.y * float( tOffScreenBufferHeight ) );
-
-		pix = texelFetch( tOffScreenBufferMS, tc, 0 );
-
-		int actualSamples = min( msNumSamples, maxMultiSamples );
-
-		for ( int i = 1; i < actualSamples; i++ )
-			pix += texelFetch( tOffScreenBufferMS, tc, i );
-		pix /= float( actualSamples );
-	} else
-	{
-		pix = texture2D( tOffScreenBuffer, texcoord.xy );
-	}
-
-	return pix;
+	return texture2D( tOffScreenBuffer, texcoord.xy );
 }
 
 void main(void)

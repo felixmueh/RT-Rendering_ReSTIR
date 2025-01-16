@@ -9,16 +9,16 @@ struct Rng {
 uint rngRnd(inout Rng rng) {
     uint64_t oldstate = rng.state;
     // Advance internal state
-    rng.state = oldstate * 6364136223846793005UL + (rng.inc|1);
+    rng.state = oldstate * 6364136223846793005UL + (rng.inc|1UL);
     // Calculate output function (XSH RR), uses old state for max ILP
     uint xorshifted = uint(((oldstate >> 18u) ^ oldstate) >> 27u);
     uint rot = uint(oldstate >> 59u);
-    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31U));
 }
 
 void rngInit(out Rng rng, uint64_t initstate, uint64_t initseq) {
     rng.state = 0U;
-    rng.inc = (initseq << 1u) | 1u;
+    rng.inc = (initseq << 1ul) | 1ul;
     rngRnd(rng);
     rng.state += initstate;
     rngRnd(rng);

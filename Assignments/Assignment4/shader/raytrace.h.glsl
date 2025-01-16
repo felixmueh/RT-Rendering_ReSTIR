@@ -49,9 +49,9 @@ struct LinearBVHNodeISPC {
 	uint firstTriangle_idxLeft;
 	uint flags_axis_and_nTriangles_idxRight;
 	uint idxParent, idxSibling;
-		// (1<<31 isChild), 
-		// (1<<30 hasLeftChild), 
-		// (1<<29 hasRightChild), 
+		// (1U<<31 isChild),
+		// (1U<<30 hasLeftChild),
+		// (1U<<29 hasRightChild),
 		// axis, 2x 8 for nTriangles
 };
 
@@ -286,33 +286,33 @@ bool castLinearStackless( inout Ray ray, float maxDist )
 		vec3 minV, maxV;
 
 		// inner node?
-		if ( ( linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<31) )==0 )
+		if ( ( linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<31) )==0 )
 		{
 			float distLeftBB = -1.0, distRightBB = -1.0;
 
-			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<30))>0 )
+			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<30))>0 )
 				distLeftBB = BBoxIntersectDistanceLeft( curNode, ray );
 
-			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<29))>0 )
+			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<29))>0 )
 				distRightBB = BBoxIntersectDistanceRight( curNode, ray );
 
 			if ( distLeftBB > 0.0 && distRightBB > 0.0 )
 			{
-				bitstack = bitstack << 1;
+				bitstack = bitstack << 1U;
 				if ( distLeftBB < distRightBB )
-					curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1<<24)-1); else
-					curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1<<24)-1);
-				bitstack |= 1;
+					curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1U<<24)-1); else
+					curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1U<<24)-1);
+				bitstack |= 1U;
 			} else
 			if ( distLeftBB > 0.0 ) 
 			{
-				bitstack = bitstack << 1;
-				curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1<<24)-1);
+				bitstack = bitstack << 1U;
+				curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1U<<24)-1);
 			} else
 			if ( distRightBB > 0.0 ) 
 			{
-				bitstack = bitstack << 1;
-				curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1<<24)-1);
+				bitstack = bitstack << 1U;
+				curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1U<<24)-1);
 			} 
 
 			if ( distLeftBB > 0.0 || distRightBB > 0.0 )
@@ -339,17 +339,17 @@ bool castLinearStackless( inout Ray ray, float maxDist )
 		} 
 
 		// backtrack
-		while ( (bitstack & 1) == 0 )
+		while ( (bitstack & 1U) == 0 )
 		{
 			if ( bitstack == 0 )
 				return retval;
 
 			curNode = linearBVH[ curNode ].idxParent;
-			bitstack = bitstack >> 1;
+			bitstack = bitstack >> 1U;
 		}
 
 		curNode = linearBVH[ curNode ].idxSibling;
-		bitstack = bitstack ^ 1;
+		bitstack = bitstack ^ 1U;
 
 	}
 
@@ -369,33 +369,33 @@ bool traceLinearStackless( inout Ray ray )
 		vec3 minV, maxV;
 
 		// inner node?
-		if ( ( linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<31) )==0 )
+		if ( ( linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<31) )==0 )
 		{
 			float distLeftBB = -1.0, distRightBB = -1.0;
 
-			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<30))>0 )
+			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<30))>0 )
 				distLeftBB = BBoxIntersectDistanceLeft( curNode, ray );
 
-			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1<<29))>0 )
+			if ( (linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & (1U<<29))>0 )
 				distRightBB = BBoxIntersectDistanceRight( curNode, ray );
 
 			if ( distLeftBB > 0.0 && distRightBB > 0.0 )
 			{
 				bitstack = bitstack << 1;
 				if ( distLeftBB < distRightBB )
-					curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1<<24)-1); else
-					curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1<<24)-1);
-				bitstack |= 1;
+					curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1U<<24)-1); else
+					curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1U<<24)-1);
+				bitstack |= 1U;
 			} else
 			if ( distLeftBB > 0.0 ) 
 			{
 				bitstack = bitstack << 1;
-				curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1<<24)-1);
+				curNode = linearBVH[ curNode ].firstTriangle_idxLeft & ((1U<<24)-1);
 			} else
 			if ( distRightBB > 0.0 ) 
 			{
-				bitstack = bitstack << 1;
-				curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1<<24)-1);
+				bitstack = bitstack << 1U;
+				curNode = linearBVH[ curNode ].flags_axis_and_nTriangles_idxRight & ((1U<<24)-1);
 			} 
 
 			if ( distLeftBB > 0.0 || distRightBB > 0.0 )
@@ -426,7 +426,7 @@ bool traceLinearStackless( inout Ray ray )
 		} 
 
 		// backtrack
-		while ( (bitstack & 1) == 0 )
+		while ( (bitstack & 1U) == 0 )
 		{
 			if ( bitstack == 0 )
 				return retval;
@@ -436,7 +436,7 @@ bool traceLinearStackless( inout Ray ray )
 		}
 
 		curNode = linearBVH[ curNode ].idxSibling;
-		bitstack = bitstack ^ 1;
+		bitstack = bitstack ^ 1U;
 
 	}
 
@@ -459,7 +459,7 @@ vec3 decodeNormal( uint code )
 	const int bits = 10;
 	float scale = float( 1 << bits );
 	vec3 r;
-	r.x = float( code & ( (1<<bits)-1 ) ) / (scale*0.5f) - 1.0f;
+	r.x = float( code & ( (1U<<bits)-1 ) ) / (scale*0.5f) - 1.0f;
 	r.y = float( code >> bits ) / (scale*0.5f) - 1.0f;
 	r.z = 1.0f - abs( r.x ) - abs( r.y );
 	if ( r.z < 0.0f )
