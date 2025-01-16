@@ -14,17 +14,17 @@
 
 #include "stdafx.h"
 
-#include "shader/shared.h.glsl"
 #include "opengl_debug.h"
+#include "shader/shared.h.glsl"
 
 extern "C" {
 #ifdef _WIN32
-	__declspec(dllexport) unsigned int NvOptimusEnablement = 1;
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+__declspec(dllexport) unsigned int NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #else
-	__attribute__((visibility("default"))) unsigned int NvOptimusEnablement = 1;
-	__attribute__((
-		visibility("default"))) int AmdPowerXpressRequestHighPerformance = 1;
+__attribute__((visibility("default"))) unsigned int NvOptimusEnablement = 1;
+__attribute__((
+    visibility("default"))) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 }
 
@@ -35,578 +35,598 @@ const char path2Demo[] = "Assignments/Assignment4/";
 using namespace glm;
 
 #ifdef USE_TWEAK_BAR
-TwBar* bar = NULL; // Pointer to a tweak bar
+TwBar *bar = NULL; // Pointer to a tweak bar
 
 typedef enum {
-	RENDER_MODE_SHADED = 0,
-	RENDER_MODE_NORMAL = 1,
-	RENDER_MODE_POSITION = 2,
+  RENDER_MODE_SHADED = 0,
+  RENDER_MODE_NORMAL = 1,
+  RENDER_MODE_POSITION = 2,
 } RENDER_MODE;
 
 struct RenderSettings {
-	RENDER_MODE renderMode = RENDER_MODE_SHADED;
-	bool enableAccumulation = false;
-	bool resetAccumulationBuffer = false;
-	float accumulationEWA = 1.0f;
+  RENDER_MODE renderMode = RENDER_MODE_SHADED;
+  bool enableAccumulation = false;
+  bool resetAccumulationBuffer = false;
+  float accumulationEWA = 1.0f;
 };
 
 RenderSettings renderSettings;
 
-static void CheckGLError()
-{
-	int err = 0;
-	char msg[256];
-	while ((err = glGetError()) != 0)
-	{
-		sprintf(msg, "GL_ERROR=0x%x\n", err);
+static void CheckGLError() {
+  int err = 0;
+  char msg[256];
+  while ((err = glGetError()) != 0) {
+    sprintf(msg, "GL_ERROR=0x%x\n", err);
 #ifdef ANT_WINDOWS
-		OutputDebugString(msg);
+    OutputDebugString(msg);
 #endif
-		fprintf(stderr, msg);
-	}
+    fprintf(stderr, msg);
+  }
 }
 
-std::string makeDefineString(const std::map<std::string, std::string>& parameters)
-{
-	std::vector<std::string> defines;
-	for (auto it = parameters.begin(); it != parameters.end(); ++it)
-	{
-		std::string currentDefine = "#define " + it->first + " " + it->second;
-		defines.push_back(currentDefine);
-	}
-	std::stringstream result;
-	std::copy(defines.begin(), defines.end(), std::ostream_iterator<std::string>(result, "\n"));
-	return result.str();
+std::string
+makeDefineString(const std::map<std::string, std::string> &parameters) {
+  std::vector<std::string> defines;
+  for (auto it = parameters.begin(); it != parameters.end(); ++it) {
+    std::string currentDefine = "#define " + it->first + " " + it->second;
+    defines.push_back(currentDefine);
+  }
+  std::stringstream result;
+  std::copy(defines.begin(), defines.end(),
+            std::ostream_iterator<std::string>(result, "\n"));
+  return result.str();
 }
 
-void initializeTweakBar()
-{
-	if (bar != NULL)
-		TwDeleteBar(bar);
-	else
-		TwTerminate();
-	nTweakBarVariables = 0;
+void initializeTweakBar() {
+  if (bar != NULL)
+    TwDeleteBar(bar);
+  else
+    TwTerminate();
+  nTweakBarVariables = 0;
 
-	// Create a tweak bar
-	TwDefine("GLOBAL fontscaling=1");
-	TwInit(TW_OPENGL, NULL);
-	TwDefine("GLOBAL fontsize=3");
+  // Create a tweak bar
+  TwDefine("GLOBAL fontscaling=1");
+  TwInit(TW_OPENGL, NULL);
+  TwDefine("GLOBAL fontsize=3");
 
-	bar = TwNewBar("Tiny Renderer");
+  bar = TwNewBar("Tiny Renderer");
 
-	TwDefine("'Tiny Renderer' position='8 30'");
-	TwDefine("'Tiny Renderer' size='300 400'");
-	TwDefine("'Tiny Renderer' text=light");
+  TwDefine("'Tiny Renderer' position='8 30'");
+  TwDefine("'Tiny Renderer' size='300 400'");
+  TwDefine("'Tiny Renderer' text=light");
 
-	// RENDERER TWBAR
-	TwEnumVal twRenderModes[] = {
-		{RENDER_MODE_SHADED, "Shaded"},
-		{RENDER_MODE_NORMAL, "GBuffer - Normal" },
-		{RENDER_MODE_POSITION, "GBuffer - Position" }
-	};
-	TwType twRenderModeTwType = TwDefineEnum("RenderMode", twRenderModes, 3);
-	TwAddVarRW(bar, "Rendermode", twRenderModeTwType, &renderSettings.renderMode, "group='Renderer'");
-	TwAddVarRW(bar, "Accumulation", TW_TYPE_BOOLCPP, &renderSettings.enableAccumulation,
-		" label='Accumulation' group='Renderer' ");
-	TwAddVarRW(bar, "AccumulationEWA", TW_TYPE_FLOAT, &renderSettings.accumulationEWA,
-		" label='Accumulation EWA' min=0.01 max=1.0 step=0.01 group='Renderer' ");
-	TwAddButton(bar, "ClearAcc", [](void* data)
-		{ renderSettings.resetAccumulationBuffer = true; }, NULL, " label='Clear Accumulation Buffer' group='Renderer' ");
+  // RENDERER TWBAR
+  TwEnumVal twRenderModes[] = {{RENDER_MODE_SHADED, "Shaded"},
+                               {RENDER_MODE_NORMAL, "GBuffer - Normal"},
+                               {RENDER_MODE_POSITION, "GBuffer - Position"}};
+  TwType twRenderModeTwType = TwDefineEnum("RenderMode", twRenderModes, 3);
+  TwAddVarRW(bar, "Rendermode", twRenderModeTwType, &renderSettings.renderMode,
+             "group='Renderer'");
+  TwAddVarRW(bar, "Accumulation", TW_TYPE_BOOLCPP,
+             &renderSettings.enableAccumulation,
+             " label='Accumulation' group='Renderer' ");
+  TwAddVarRW(
+      bar, "AccumulationEWA", TW_TYPE_FLOAT, &renderSettings.accumulationEWA,
+      " label='Accumulation EWA' min=0.01 max=1.0 step=0.01 group='Renderer' ");
+  TwAddButton(
+      bar, "ClearAcc",
+      [](void *data) { renderSettings.resetAccumulationBuffer = true; }, NULL,
+      " label='Clear Accumulation Buffer' group='Renderer' ");
 }
 #endif
 
-IMWrap* createWrapper(GLSLProgram& prg) {
-	IMWrap *wrapper = new IMWrap();
-	wrapper->bindShader(prg.getProgramObject(), 2, "in_position", "in_texcoord");
-	wrapper->Begin(GL_TRIANGLES);
-	wrapper->Attrib2f(1, 0, 0);
-	wrapper->Vertex3f(-1, -1, -0.5f);
-	wrapper->Attrib2f(1, 1, 0);
-	wrapper->Vertex3f(1, -1, -0.5f);
-	wrapper->Attrib2f(1, 1, 1);
-	wrapper->Vertex3f(1, 1, -0.5f);
+IMWrap *createWrapper(GLSLProgram &prg) {
+  IMWrap *wrapper = new IMWrap();
+  wrapper->bindShader(prg.getProgramObject(), 2, "in_position", "in_texcoord");
+  wrapper->Begin(GL_TRIANGLES);
+  wrapper->Attrib2f(1, 0, 0);
+  wrapper->Vertex3f(-1, -1, -0.5f);
+  wrapper->Attrib2f(1, 1, 0);
+  wrapper->Vertex3f(1, -1, -0.5f);
+  wrapper->Attrib2f(1, 1, 1);
+  wrapper->Vertex3f(1, 1, -0.5f);
 
-	wrapper->Attrib2f(1, 0, 0);
-	wrapper->Vertex3f(-1, -1, -0.5f);
-	wrapper->Attrib2f(1, 1, 1);
-	wrapper->Vertex3f(1, 1, -0.5f);
-	wrapper->Attrib2f(1, 0, 1);
-	wrapper->Vertex3f(-1, 1, -0.5f);
-	wrapper->End();
+  wrapper->Attrib2f(1, 0, 0);
+  wrapper->Vertex3f(-1, -1, -0.5f);
+  wrapper->Attrib2f(1, 1, 1);
+  wrapper->Vertex3f(1, 1, -0.5f);
+  wrapper->Attrib2f(1, 0, 1);
+  wrapper->Vertex3f(-1, 1, -0.5f);
+  wrapper->End();
 
-	CheckGLError();
-	return wrapper;
+  CheckGLError();
+  return wrapper;
 }
 
-class CRender : public CRenderBase
-{
+class CRender : public CRenderBase {
 protected:
-	Scene* scene;  // scene for loading .obj and computing a BVH
-	Camera camera; // camera (acts as trackball by default)
-	EnvMap* envmap;
-	GLSLProgram prgRender; // GLSL programs, each one can keep a vertex and a fragment shader
-	IMWrap* wrap; // wrapper for OpenGL immediate calls
+  Scene *scene;  // scene for loading .obj and computing a BVH
+  Camera camera; // camera (acts as trackball by default)
+  EnvMap *envmap;
+  GLSLProgram prgRender; // GLSL programs, each one can keep a vertex and a
+                         // fragment shader
+  IMWrap *wrap;          // wrapper for OpenGL immediate calls
 
-	GLSLProgram prgPostProc; // GLSL programs, each one can keep a vertex and a fragment shader
-	GLSLProgram prgDepth; // GLSL programs, each one can keep a vertex and a fragment shader
+  GLSLProgram prgPostProc; // GLSL programs, each one can keep a vertex and a
+                           // fragment shader
+  GLSLProgram prgDepth;    // GLSL programs, each one can keep a vertex and a
+                           // fragment shader
 
-	OGLTexture* tGPosition, * tGNormal, * tGColor;
+  OGLTexture *tGPosition, *tGNormal, *tGColor;
 
-	FramebufferObject pDeferredFBO;
-	Renderbuffer pDeferredRenderBuffer;
+  FramebufferObject pDeferredFBO;
+  Renderbuffer pDeferredRenderBuffer;
 
 public:
-	CRender()
-	{
-		initializeOpenGLDebugCallback();
-		glfwGetWindowSize(glfwWindow, &width, &height);
+  CRender() {
+    initializeOpenGLDebugCallback();
+    glfwGetWindowSize(glfwWindow, &width, &height);
 
-		enableGLDebugOutput = false;
-		offScreenRenderTarget = true; // required for multi sampling, stereo, accumulation
-		useMultisampling = false;
-		stereoRendering = false;
-		useAccumulationBuffer = true; // call clearAccumulationBuffer(); in sceneFrameRender() to clear the buffer
-		accumulationEWA		  = renderSettings.accumulationEWA;		// if this value is set (to != 1.0f which is default) then accumulation buffer images will be accumulated using exponentially weighted averaging
+    enableGLDebugOutput = false;
+    offScreenRenderTarget =
+        true; // required for multi sampling, stereo, accumulation
+    useMultisampling = false;
+    stereoRendering = false;
+    useAccumulationBuffer = true; // call clearAccumulationBuffer(); in
+                                  // sceneFrameRender() to clear the buffer
+    accumulationEWA =
+        renderSettings
+            .accumulationEWA; // if this value is set (to != 1.0f which is
+                              // default) then accumulation buffer images will
+                              // be accumulated using exponentially weighted
+                              // averaging
 
-		// called here as the initialization depends on some flags we can set in CRender
-		CRenderBase::CRenderBaseInit();
+    // called here as the initialization depends on some flags we can set in
+    // CRender
+    CRenderBase::CRenderBaseInit();
 
-		// load and/or create shaders, textures, and models
-		loadShaders(true);
-		createTextures();
-		loadModels();
+    // load and/or create shaders, textures, and models
+    loadShaders(true);
+    createTextures();
+    loadModels();
 
-		// call it here so that these textures show up at the end in the texture manager
-		CRenderBase::createTextures();
-	}
+    // call it here so that these textures show up at the end in the texture
+    // manager
+    CRenderBase::createTextures();
+  }
 
-	~CRender()
-	{
-		if (scene)
-			delete scene;
-	}
+  ~CRender() {
+    if (scene)
+      delete scene;
+  }
 
-	//
-	// load 3d models
-	//
-	void loadModels()
-	{
-		scene = new Scene(texMan);
-		envmap = new EnvMap();
-		const char* attribs[3] = { "in_position", "in_normal", "in_texcoord" };
+  //
+  // load 3d models
+  //
+  void loadModels() {
+    scene = new Scene(texMan);
+    envmap = new EnvMap();
+    const char *attribs[3] = {"in_position", "in_normal", "in_texcoord"};
 
-		envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
+    envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
-		scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3, (const char**)attribs, "cbox.obj", "./data/", true);
-		scene->buildBVH(0);
-	}
+    scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+                   (const char **)attribs, "cbox.obj", "./data/", true);
+    scene->buildBVH(0);
+  }
 
-	//
-	// load vertex and fragment shaders
-	//
-	void loadShaders(bool firstTime = false)
-	{
-		if (!firstTime)
-			CRenderBase::loadShaders(firstTime);
+  //
+  // load vertex and fragment shaders
+  //
+  void loadShaders(bool firstTime = false) {
+    if (!firstTime)
+      CRenderBase::loadShaders(firstTime);
 
-		// load and setup a shader
-		if (!prgRender.loadVertexShader(tmpStrCat(path2Demo, "shader/perpixel_lighting.vp.glsl")) ||
-			!prgRender.loadFragmentShader(tmpStrCat(path2Demo, "shader/perpixel_lighting.fp.glsl")))
-		{
-			if (firstTime)
-				exit(1);
-		}
+    // load and setup a shader
+    if (!prgRender.loadVertexShader(
+            tmpStrCat(path2Demo, "shader/perpixel_lighting.vp.glsl")) ||
+        !prgRender.loadFragmentShader(
+            tmpStrCat(path2Demo, "shader/perpixel_lighting.fp.glsl"))) {
+      if (firstTime)
+        exit(1);
+    }
 
-		prgRender.link();
-		glBindFragDataLocation(prgRender.getProgramObject(), 0, "out_color");
-		glBindFragDataLocation(prgRender.getProgramObject(), 1, "out_pos");
-		glBindFragDataLocation(prgRender.getProgramObject(), 2, "out_normal");
+    prgRender.link();
+    glBindFragDataLocation(prgRender.getProgramObject(), 0, "out_color");
+    glBindFragDataLocation(prgRender.getProgramObject(), 1, "out_pos");
+    glBindFragDataLocation(prgRender.getProgramObject(), 2, "out_normal");
 
-		CheckGLError();
-
-#ifdef USE_TWEAK_BAR
-		if (firstTime)
-		{
-			initializeTweakBar();
-
-			// parse the shader for UI-variables, add them to AntTweakBar in section 'auto-gen variables'
-			parseShaderTweakBar(bar, &prgRender, prgRender.getFragmentShaderSrc(), "auto-gen variables");
-		}
-#endif
-
-		// load and setup a shader
-		if (!prgDepth.loadVertexShader(tmpStrCat(path2Demo, "shader/perpixel_lighting.vp.glsl")) ||
-			!prgDepth.loadFragmentShader(tmpStrCat(path2Demo, "shader/noop.fp.glsl")))
-		{
-			if (firstTime)
-				exit(1);
-		}
-
-		prgDepth.link();
-
-		CheckGLError();
-
-		// this shows how to load a custom post processing shader and parsing its source for UI-variables
-		if (!prgPostProc.loadVertexShader(tmpStrCat(path2Demo, "shader/postprocess.vp.glsl")) ||
-			!prgPostProc.loadFragmentShader(tmpStrCat(path2Demo, "shader/postprocess.fp.glsl")))
-		{
-			if (firstTime)
-				exit(1);
-		}
-		prgPostProc.link();
-		glBindFragDataLocation(prgPostProc.getProgramObject(), 0, "result");
-
-		wrap = createWrapper(prgPostProc);
+    CheckGLError();
 
 #ifdef USE_TWEAK_BAR
-		if (firstTime)
-		{
-			parseShaderTweakBar(bar, &prgPostProc, prgPostProc.getFragmentShaderSrc(), "Post Process");
-		}
+    if (firstTime) {
+      initializeTweakBar();
+
+      // parse the shader for UI-variables, add them to AntTweakBar in section
+      // 'auto-gen variables'
+      parseShaderTweakBar(bar, &prgRender, prgRender.getFragmentShaderSrc(),
+                          "auto-gen variables");
+    }
 #endif
-	}
 
-	//
-	// create textures and render targets
-	//
-	void createTextures()
-	{
-		int w, h;
-		glfwGetWindowSize(glfwWindow, &w, &h);
+    // load and setup a shader
+    if (!prgDepth.loadVertexShader(
+            tmpStrCat(path2Demo, "shader/perpixel_lighting.vp.glsl")) ||
+        !prgDepth.loadFragmentShader(
+            tmpStrCat(path2Demo, "shader/noop.fp.glsl"))) {
+      if (firstTime)
+        exit(1);
+    }
 
-		// bind the frame buffer object
-		pDeferredFBO.Bind();
+    prgDepth.link();
 
-		// create and attach textures to framebuffer color buffer
-		texMan->CreateTexture(&tGColor, w, h, GL_RGBA16F_ARB, "color");
-		texMan->CreateTexture(&tGPosition, w, h, GL_RGBA32F_ARB, "position");
-		texMan->CreateTexture(&tGNormal, w, h, GL_RGBA16F_ARB, "normals");
-		pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGColor->getID(), GL_COLOR_ATTACHMENT0);
-		pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGPosition->getID(), GL_COLOR_ATTACHMENT1);
-		pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGNormal->getID(), GL_COLOR_ATTACHMENT2);
+    CheckGLError();
 
+    // this shows how to load a custom post processing shader and parsing its
+    // source for UI-variables
+    if (!prgPostProc.loadVertexShader(
+            tmpStrCat(path2Demo, "shader/postprocess.vp.glsl")) ||
+        !prgPostProc.loadFragmentShader(
+            tmpStrCat(path2Demo, "shader/postprocess.fp.glsl"))) {
+      if (firstTime)
+        exit(1);
+    }
+    prgPostProc.link();
+    glBindFragDataLocation(prgPostProc.getProgramObject(), 0, "result");
 
-		// initialize and attach depth renderbuffer
-		pDeferredRenderBuffer.Set(GL_DEPTH24_STENCIL8, w, h);
-		pDeferredFBO.AttachRenderBuffer(pDeferredRenderBuffer.GetId(), GL_DEPTH_ATTACHMENT);
-
-		// validate the fbo after attaching textures and render buffers
-		pDeferredFBO.IsValid();
-
-		// disable fbo rendering for now
-		FramebufferObject::Disable();
-	}
-
-	void firstFramePrep()
-	{
-		scene->uploadBVH2GPU(width, height);
-		scene->setBVHShaderUniforms(&prgRender);
-
-		loadShaders();
-
-		mat4 matM;
-		camera.computeMatrices(&trackball, matM, 0);
-	}
-
-
-	//
-	// render scene to G-buffers
-	//
-	void sceneRenderDepth() {
-		// now bind the program and set the parameters
-		prgDepth.bind();
-		//
-		// save current render target and viewport
-		//
-		GLint camRenderTarget, camViewPort[4];
-		glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
-		glGetIntegerv(GL_VIEWPORT, camViewPort);
-
-		//
-		// setup viewport and OpenGL-states
-		//
-		int w, h;
-		glfwGetWindowSize(glfwWindow, &w, &h);
-		glViewport(0, 0, w, h);
-
-		pDeferredFBO.Bind();
-		CheckGLError();
-
-
-		// set some render states
-		glEnable(GL_DEPTH_TEST);
-		CheckGLError();
-		glEnable(GL_CULL_FACE);
-		CheckGLError();
-
-		// clear screen
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		CheckGLError();
-		//glClearColor( 0.3f, 0.3f, 0.3f, 0.2f );
-		CheckGLError();
-		glClear(GL_DEPTH_BUFFER_BIT);
-		CheckGLError();
-
-
-
-		CheckGLError();
-
-		// this makro bins the texture object 'tDiffuse' to the shader program 'prgRender'
-		// where the sampler is called 'tObjMapKd', and texture unit #0 is used
-		// (essentially this is a bind + Uniform1i)
-		//BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
-		//BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
-
-		// compute some matrices and set uniforms
-		mat4 matM, matNrml;
-		camera.computeMatrices(&trackball, matM, 0);
-		matNrml = transpose(inverse(matM));
-
-		CheckGLError();
-
-		static int sampleIdx = 0;
-		sampleIdx++;
-
-		CheckGLError();
-		prgDepth.UniformMatrix4fv((char const*)"matM", 1, false, value_ptr(matM));
-		CheckGLError();
-		prgDepth.UniformMatrix4fv((char const*)"matNrml", 1, false, value_ptr(matNrml));
-		CheckGLError();
-		prgDepth.UniformMatrix4fv((char const*)"matMV", 1, false, value_ptr(camera.matMV));
-		CheckGLError();
-		prgDepth.UniformMatrix4fv((char const*)"matVP", 1, false, value_ptr(camera.matVP));
-		CheckGLError();
-		prgDepth.UniformMatrix4fv((char const*)"matV", 1, false, value_ptr(camera.matV));
-		CheckGLError();
-
-		mat4 matMVP = camera.matMVP;
-		prgDepth.UniformMatrix4fv((char*)"matMVP", 1, false, value_ptr(matMVP));
-		//prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr( camera.matMVP ) );
-
-		CheckGLError();
-
-
-		// render objects
-		scene->draw(&prgDepth, RENDER_MATERIALS);
-
-		CheckGLError();
-		//
-		// restore viewport and render target
-		//
-		pDeferredFBO.Disable();
-		glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
-		GLenum buffersCam[] = { (GLenum)camRenderTarget };
-		glDrawBuffers(1, buffersCam);
-
-		CheckGLError();
-
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		CheckGLError();
-
-	}
-
-
-	//
-	// render scene to G-buffers
-	//
-	void sceneRenderGBuffers(int frame) {
-		//
-		// save current render target and viewport
-		//
-		GLint camRenderTarget, camViewPort[4];
-		glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
-		glGetIntegerv(GL_VIEWPORT, camViewPort);
-
-		//
-		// setup viewport and OpenGL-states
-		//
-		int w, h;
-		glfwGetWindowSize(glfwWindow, &w, &h);
-		glViewport(0, 0, w, h);
-
-		pDeferredFBO.Bind();
-		CheckGLError();
-
-		const GLenum buffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-		glDrawBuffers(3, buffers);
+    wrap = createWrapper(prgPostProc);
 
 #ifdef USE_TWEAK_BAR
-		setShaderUniformsTweakBar();
+    if (firstTime) {
+      parseShaderTweakBar(bar, &prgPostProc, prgPostProc.getFragmentShaderSrc(),
+                          "Post Process");
+    }
 #endif
-		CheckGLError();
+  }
 
-		// set some render states
-		glEnable(GL_DEPTH_TEST);
-		CheckGLError();
-		glEnable(GL_CULL_FACE);
-		CheckGLError();
+  //
+  // create textures and render targets
+  //
+  void createTextures() {
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
 
-		glDepthFunc(GL_EQUAL);
-		// CheckGLError();
-		glDepthMask(GL_FALSE);
-		// CheckGLError();
+    // bind the frame buffer object
+    pDeferredFBO.Bind();
 
-		// clear screen
-		glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+    // create and attach textures to framebuffer color buffer
+    texMan->CreateTexture(&tGColor, w, h, GL_RGBA16F_ARB, "color");
+    texMan->CreateTexture(&tGPosition, w, h, GL_RGBA32F_ARB, "position");
+    texMan->CreateTexture(&tGNormal, w, h, GL_RGBA16F_ARB, "normals");
+    pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGColor->getID(),
+                               GL_COLOR_ATTACHMENT0);
+    pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGPosition->getID(),
+                               GL_COLOR_ATTACHMENT1);
+    pDeferredFBO.AttachTexture(GL_TEXTURE_2D, tGNormal->getID(),
+                               GL_COLOR_ATTACHMENT2);
 
-		// now bind the program and set the parameters
-		prgRender.bind();
+    // initialize and attach depth renderbuffer
+    pDeferredRenderBuffer.Set(GL_DEPTH24_STENCIL8, w, h);
+    pDeferredFBO.AttachRenderBuffer(pDeferredRenderBuffer.GetId(),
+                                    GL_DEPTH_ATTACHMENT);
 
-		envmap->bind(&prgRender);
-		CheckGLError();
+    // validate the fbo after attaching textures and render buffers
+    pDeferredFBO.IsValid();
 
-		// this makro bins the texture object 'tDiffuse' to the shader program 'prgRender'
-		// where the sampler is called 'tObjMapKd', and texture unit #0 is used
-		// (essentially this is a bind + Uniform1i)
-		//BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
-		//BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
+    // disable fbo rendering for now
+    FramebufferObject::Disable();
+  }
 
-		// compute some matrices and set uniforms
-		mat4 matM, matNrml;
-		camera.computeMatrices(&trackball, matM, 0);
-		matNrml = transpose(inverse(matM));
+  void firstFramePrep() {
+    scene->uploadBVH2GPU(width, height);
+    scene->setBVHShaderUniforms(&prgRender);
 
-		CheckGLError();
+    loadShaders();
 
-		static int sampleIdx = 0;
-		sampleIdx++;
+    mat4 matM;
+    camera.computeMatrices(&trackball, matM, 0);
+  }
 
-		CheckGLError();
-		prgRender.UniformMatrix4fv((char const*)"matM", 1, false, value_ptr(matM));
-		CheckGLError();
-		prgRender.UniformMatrix4fv((char const*)"matNrml", 1, false, value_ptr(matNrml));
-		CheckGLError();
-		prgRender.UniformMatrix4fv((char const*)"matMV", 1, false, value_ptr(camera.matMV));
-		CheckGLError();
-		prgRender.UniformMatrix4fv((char const*)"matVP", 1, false, value_ptr(camera.matVP));
-		CheckGLError();
-		prgRender.UniformMatrix4fv((char const*)"matV", 1, false, value_ptr(camera.matV));
-		CheckGLError();
+  //
+  // render scene to G-buffers
+  //
+  void sceneRenderDepth() {
+    // now bind the program and set the parameters
+    prgDepth.bind();
+    //
+    // save current render target and viewport
+    //
+    GLint camRenderTarget, camViewPort[4];
+    glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
+    glGetIntegerv(GL_VIEWPORT, camViewPort);
 
-		CheckGLError();
-		mat4 matMVP = camera.matMVP;
-		prgRender.UniformMatrix4fv((char*)"matMVP", 1, false, value_ptr(matMVP));
-		//prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr( camera.matMVP ) );
-		CheckGLError();
+    //
+    // setup viewport and OpenGL-states
+    //
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
 
-		prgRender.Uniform3fv((char const*)"camPos", 1, value_ptr(camera.camPos));
-		prgRender.Uniform1f((char const*)"time", (float)frame);
-		prgRender.Uniform1i((char const*)"frameIdx", frame);
-		CheckGLError();
+    pDeferredFBO.Bind();
+    CheckGLError();
 
-		prgRender.Uniform1i((char const*)"width", width);
-		CheckGLError();
-		prgRender.Uniform1i((char const*)"height", height);
-		CheckGLError();
-		// render objects
-		scene->draw(&prgRender, RENDER_MATERIALS);
-		CheckGLError();
+    // set some render states
+    glEnable(GL_DEPTH_TEST);
+    CheckGLError();
+    glEnable(GL_CULL_FACE);
+    CheckGLError();
 
-		//
-		// restore viewport and render target
-		//
-		pDeferredFBO.Disable();
-		glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
-		GLenum buffersCam[] = { (GLenum)camRenderTarget };
-		glDrawBuffers(1, buffersCam);
+    // clear screen
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    CheckGLError();
+    // glClearColor( 0.3f, 0.3f, 0.3f, 0.2f );
+    CheckGLError();
+    glClear(GL_DEPTH_BUFFER_BIT);
+    CheckGLError();
 
-		// CheckGLError();
-		glDepthMask(GL_TRUE);
-		glDepthFunc(GL_LESS);
+    CheckGLError();
 
-		CheckGLError();
-	}
+    // this makro bins the texture object 'tDiffuse' to the shader program
+    // 'prgRender' where the sampler is called 'tObjMapKd', and texture unit #0
+    // is used (essentially this is a bind + Uniform1i)
+    // BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
+    // BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
 
-	//
-	// render post processing
-	//
-	void scenePostProc() {
-		int w, h;
-		glfwGetWindowSize(glfwWindow, &w, &h);
+    // compute some matrices and set uniforms
+    mat4 matM, matNrml;
+    camera.computeMatrices(&trackball, matM, 0);
+    matNrml = transpose(inverse(matM));
 
-		// Clear the screen with a specific color
-		//glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
-		//glClear(GL_COLOR_BUFFER_BIT);
+    CheckGLError();
 
-		//glDisable(GL_BLEND);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    static int sampleIdx = 0;
+    sampleIdx++;
 
-		glEnable(GL_TEXTURE_2D);
-		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
+    CheckGLError();
+    prgDepth.UniformMatrix4fv((char const *)"matM", 1, false, value_ptr(matM));
+    CheckGLError();
+    prgDepth.UniformMatrix4fv((char const *)"matNrml", 1, false,
+                              value_ptr(matNrml));
+    CheckGLError();
+    prgDepth.UniformMatrix4fv((char const *)"matMV", 1, false,
+                              value_ptr(camera.matMV));
+    CheckGLError();
+    prgDepth.UniformMatrix4fv((char const *)"matVP", 1, false,
+                              value_ptr(camera.matVP));
+    CheckGLError();
+    prgDepth.UniformMatrix4fv((char const *)"matV", 1, false,
+                              value_ptr(camera.matV));
+    CheckGLError();
 
-		glm::mat4 mat(1);
-		envmap->renderSkybox(camera.matMVP, mat, camera.camPos);
+    mat4 matMVP = camera.matMVP;
+    prgDepth.UniformMatrix4fv((char *)"matMVP", 1, false, value_ptr(matMVP));
+    // prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr(
+    // camera.matMVP ) );
 
-		prgPostProc.bind();
+    CheckGLError();
 
-		BINDOGLTEX(prgPostProc, "tColor", tGColor, GL_TEXTURE0);
-		BINDOGLTEX(prgPostProc, "tPosition", tGPosition, GL_TEXTURE1);
-		BINDOGLTEX(prgPostProc, "tNormal", tGNormal, GL_TEXTURE2);
+    // render objects
+    scene->draw(&prgDepth, RENDER_MATERIALS);
 
-		prgPostProc.Uniform1i((char const*)"width", w);
-		prgPostProc.Uniform1i((char const*)"height", h);
+    CheckGLError();
+    //
+    // restore viewport and render target
+    //
+    pDeferredFBO.Disable();
+    glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
+    GLenum buffersCam[] = {(GLenum)camRenderTarget};
+    glDrawBuffers(1, buffersCam);
 
-		prgPostProc.Uniform1i((char const*)"rendermode", (int)renderSettings.renderMode);
+    CheckGLError();
 
-		envmap->bind(&prgPostProc);
-		prgPostProc.Uniform3fv((char*)"camPos", 1, glm::value_ptr(camera.camPos));
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    CheckGLError();
+  }
 
-		wrap->draw();
+  //
+  // render scene to G-buffers
+  //
+  void sceneRenderGBuffers(int frame) {
+    //
+    // save current render target and viewport
+    //
+    GLint camRenderTarget, camViewPort[4];
+    glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
+    glGetIntegerv(GL_VIEWPORT, camViewPort);
 
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	}
+    //
+    // setup viewport and OpenGL-states
+    //
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
 
-	//
-	// render a frame of the scene
-	//
-	void sceneRender()
-	{
+    pDeferredFBO.Bind();
+    CheckGLError();
 
-		static int frame = 0;
-		if (frame == 0)
-		{
-			firstFramePrep();
-		}
-		frame++;
+    const GLenum buffers[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+                               GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, buffers);
 
-		useAccumulationBuffer = renderSettings.enableAccumulation;  // call clearAccumulationBuffer(); in sceneFrameRender() to clear the buffer
-		accumulationEWA = renderSettings.accumulationEWA;			// if this value is set (to != 1.0f which is default) then accumulation buffer images will be accumulated using exponentially weighted averaging
+#ifdef USE_TWEAK_BAR
+    setShaderUniformsTweakBar();
+#endif
+    CheckGLError();
 
-		if (renderSettings.resetAccumulationBuffer) {
-			clearAccumulationBuffer();
-			renderSettings.resetAccumulationBuffer = false;
-		}
+    // set some render states
+    glEnable(GL_DEPTH_TEST);
+    CheckGLError();
+    glEnable(GL_CULL_FACE);
+    CheckGLError();
 
-		if (trackball.hasUpdated() && accumulationEWA == 1.0f)
-			clearAccumulationBuffer();
+    glDepthFunc(GL_EQUAL);
+    // CheckGLError();
+    glDepthMask(GL_FALSE);
+    // CheckGLError();
 
-		sceneRenderDepth();
-		sceneRenderGBuffers(frame);
+    // clear screen
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-		if (offScreenRenderTarget)
-			CRenderBase::prepareOffScreenRendering();
+    // now bind the program and set the parameters
+    prgRender.bind();
 
-		scenePostProc();
+    envmap->bind(&prgRender);
+    CheckGLError();
 
-		if (offScreenRenderTarget)
-			CRenderBase::finishOffScreenRendering();
+    // this makro bins the texture object 'tDiffuse' to the shader program
+    // 'prgRender' where the sampler is called 'tObjMapKd', and texture unit #0
+    // is used (essentially this is a bind + Uniform1i)
+    // BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
+    // BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
 
-		scenePostProcess();
-	}
+    // compute some matrices and set uniforms
+    mat4 matM, matNrml;
+    camera.computeMatrices(&trackball, matM, 0);
+    matNrml = transpose(inverse(matM));
 
+    CheckGLError();
+
+    static int sampleIdx = 0;
+    sampleIdx++;
+
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matM", 1, false, value_ptr(matM));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matNrml", 1, false,
+                               value_ptr(matNrml));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matMV", 1, false,
+                               value_ptr(camera.matMV));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matVP", 1, false,
+                               value_ptr(camera.matVP));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matV", 1, false,
+                               value_ptr(camera.matV));
+    CheckGLError();
+
+    CheckGLError();
+    mat4 matMVP = camera.matMVP;
+    prgRender.UniformMatrix4fv((char *)"matMVP", 1, false, value_ptr(matMVP));
+    // prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr(
+    // camera.matMVP ) );
+    CheckGLError();
+
+    prgRender.Uniform3fv((char const *)"camPos", 1, value_ptr(camera.camPos));
+    prgRender.Uniform1f((char const *)"time", (float)frame);
+    prgRender.Uniform1i((char const *)"frameIdx", frame);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"width", width);
+    CheckGLError();
+    prgRender.Uniform1i((char const *)"height", height);
+    CheckGLError();
+    // render objects
+    scene->draw(&prgRender, RENDER_MATERIALS);
+    CheckGLError();
+
+    //
+    // restore viewport and render target
+    //
+    pDeferredFBO.Disable();
+    glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
+    GLenum buffersCam[] = {(GLenum)camRenderTarget};
+    glDrawBuffers(1, buffersCam);
+
+    // CheckGLError();
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+
+    CheckGLError();
+  }
+
+  //
+  // render post processing
+  //
+  void scenePostProc() {
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+
+    // Clear the screen with a specific color
+    // glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+    // glClear(GL_COLOR_BUFFER_BIT);
+
+    // glDisable(GL_BLEND);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glEnable(GL_TEXTURE_2D);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    glm::mat4 mat(1);
+    envmap->renderSkybox(camera.matMVP, mat, camera.camPos);
+
+    prgPostProc.bind();
+
+    BINDOGLTEX(prgPostProc, "tColor", tGColor, GL_TEXTURE0);
+    BINDOGLTEX(prgPostProc, "tPosition", tGPosition, GL_TEXTURE1);
+    BINDOGLTEX(prgPostProc, "tNormal", tGNormal, GL_TEXTURE2);
+
+    prgPostProc.Uniform1i((char const *)"width", w);
+    prgPostProc.Uniform1i((char const *)"height", h);
+
+    prgPostProc.Uniform1i((char const *)"rendermode",
+                          (int)renderSettings.renderMode);
+
+    envmap->bind(&prgPostProc);
+    prgPostProc.Uniform3fv((char *)"camPos", 1, glm::value_ptr(camera.camPos));
+
+    wrap->draw();
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  }
+
+  //
+  // render a frame of the scene
+  //
+  void sceneRender() {
+
+    static int frame = 0;
+    if (frame == 0) {
+      firstFramePrep();
+    }
+    frame++;
+
+    useAccumulationBuffer =
+        renderSettings
+            .enableAccumulation; // call clearAccumulationBuffer(); in
+                                 // sceneFrameRender() to clear the buffer
+    accumulationEWA =
+        renderSettings
+            .accumulationEWA; // if this value is set (to != 1.0f which is
+                              // default) then accumulation buffer images will
+                              // be accumulated using exponentially weighted
+                              // averaging
+
+    if (renderSettings.resetAccumulationBuffer) {
+      clearAccumulationBuffer();
+      renderSettings.resetAccumulationBuffer = false;
+    }
+
+    if (trackball.hasUpdated() && accumulationEWA == 1.0f)
+      clearAccumulationBuffer();
+
+    sceneRenderDepth();
+    sceneRenderGBuffers(frame);
+
+    if (offScreenRenderTarget)
+      CRenderBase::prepareOffScreenRendering();
+
+    scenePostProc();
+
+    if (offScreenRenderTarget)
+      CRenderBase::finishOffScreenRendering();
+
+    scenePostProcess();
+  }
 };
-
 
 // no need to modify anything below this line
 
-CRender* pRenderClass;
+CRender *pRenderClass;
 
-void initialize()
-{
-	pRenderClass = new CRender();
-}
+void initialize() { pRenderClass = new CRender(); }
 
 #endif
