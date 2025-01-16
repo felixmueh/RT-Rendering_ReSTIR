@@ -211,12 +211,14 @@ public:
       envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
       scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
-          (const char**)attribs, "cbox.obj", "./data/", true);
+          (const char**)attribs, "cbox.obj", "./data/", false);
       scene->buildBVH(0);
+
 
       vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
       // vector<CpuEmissiveTriangle> emissiveTris;
       // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
+
       lights.initialize(emissiveTris);
   }
 

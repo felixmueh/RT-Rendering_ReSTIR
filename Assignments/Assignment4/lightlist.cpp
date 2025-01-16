@@ -42,6 +42,8 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
         cumulativeSum += tri.computeArea();
         cdf.push_back(cumulativeSum / totalArea); // Normalize by total area
     }
+    std::cout << cdf.back();
+    assert(cdf.back() >= (1.0 - 1e-10));
 }
 
 void LightList::uploadLightList2GPU()

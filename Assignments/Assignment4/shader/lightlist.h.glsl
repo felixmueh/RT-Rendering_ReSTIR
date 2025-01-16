@@ -43,7 +43,7 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
     float sqrt_r1 = sqrt(rnd.x);
     float lambda1 = 1.0 - sqrt_r1;
     float lambda2 = sqrt_r1 * (1.0 - rnd.y);
-    float lambda3 = rnd.y;
+    float lambda3 = sqrt_r1 * rnd.y;
 
     // Sample the point on the triangle using the barycentric coordinates
     vec3 sampledPoint = lambda1 * p1 + lambda2 * p2 + lambda3 * p3;
@@ -53,12 +53,18 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
 
 uint sampleTriangle(float rnd) {
   uint i = 0;
-  while(emissiveCDF[i] < rnd) {
+  while(i < nEmissiveTriangles-1 && emissiveCDF[i] < rnd) {
     i++;
   }
   return i;
 }
 
+void sampleLight(vec3 rnd, out vec3 emission, out vec3 pos, out float pdf) {
+  GpuEmissiveTriangle triangle = emissiveTriangles[sampleTriangle(rnd.x)];
+  unpackEmissiveTriangle(triangle, emission);
+  pos = samplePoint(triangle, rnd.yz);
+  pdf = 1.0 / totalArea;
+}
 
 float min_dist_to_triangle_vertices() {
     float min_dist = 1e30;

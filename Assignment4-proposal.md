@@ -53,8 +53,9 @@ In case some of these prove to be significantly more challenging than others we 
 - Dominik Wüst
 
 # TODOs
-- Add emissive triangles to scene (cbox)
-- Initialize light list
+- pdf for area Lights
+- check cdf and triangle sampling
 - Resampling / Environment map / lightlist
 - Spacial / temporal datastructures
 - Spacial / temporal reuse
+- Performance light selection (binary search or better)

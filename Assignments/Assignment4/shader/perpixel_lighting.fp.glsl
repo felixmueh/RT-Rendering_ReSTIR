@@ -97,19 +97,18 @@ void main(void)
     out_pos = vec4(P, 1.0f);
     out_normal = vec4(N, 1.0f);
 
-    uint idx = sampleTriangle(rngRndFloat(rng));
+    vec3 rnd = rngRndVec3(rng);
 
-    vec2 rnd = rngRndVec2(rng);
-    GpuEmissiveTriangle triangle = emissiveTriangles[idx];
-    vec3 p = samplePoint(triangle, rnd);
+    vec3 pos, emission;
+    float pdf;
+    sampleLight(rnd, emission, pos, pdf);
 
-    vec3 dir = p-P;
+    vec3 dir = pos-P;
     Ray r = createRay(P + N * 1e-5, normalize(dir), 0, length(dir)-1e-3);
     // cast shadow ray, accumulate lighting if no intersection
     if ( !traceRay( r ) ) {
-        vec3 emission;
-        unpackEmissiveTriangle(triangle, emission);
-        out_color.xyz = emission * max(dot(dir, N), 0.0) / dot(dir, dir);
+        dir = normalize(dir);
+        out_color.xyz = emission * objMatDiffuse * max(dot(dir, N), 0.0) / (dot(dir, dir));
     }
 
 
