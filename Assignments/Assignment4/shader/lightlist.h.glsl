@@ -24,10 +24,20 @@ void unpackEmissiveTriangle(in GpuEmissiveTriangle t, out vec3 p1, out vec3 p2, 
     emission = vec3(t.data[9], t.data[10], t.data[11]);
 }
 
+void unpackEmissiveTriangle(in GpuEmissiveTriangle t, out vec3 emission) {
+    emission = vec3(t.data[9], t.data[10], t.data[11]);
+}
+
+void unpackEmissiveTriangle(in GpuEmissiveTriangle t, out vec3 p1, out vec3 p2, out vec3 p3) {
+    p1 = vec3(t.data[0], t.data[1], t.data[2]);
+    p2 = vec3(t.data[3], t.data[4], t.data[5]);
+    p3 = vec3(t.data[6], t.data[7], t.data[8]);
+}
+
 vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
     // Unpack the triangle's vertices and emission values
-    vec3 p1, p2, p3, emission;
-    unpackEmissiveTriangle(t, p1, p2, p3, emission);
+    vec3 p1, p2, p3;
+    unpackEmissiveTriangle(t, p1, p2, p3);
 
     // Compute the barycentric coordinates for uniform sampling
     float sqrt_r1 = sqrt(rnd.x);
