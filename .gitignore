@@ -1,0 +1,22 @@
+# Ignore the data directory
+data/
+
+# Ignore build directories
+/build/
+/Release/
+/Debug/
+
+# Ignore shader error logs
+shader_error.glsl
+
+# Ignore common OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.user
+*.ncb
+*.sdf
+*.VC.db
+*.log
