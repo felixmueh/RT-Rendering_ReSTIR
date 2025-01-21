@@ -64,11 +64,15 @@ struct RenderSettings {
 
 RenderSettings renderSettings;
 
-static void CheckGLError() {
+static void CheckGLError(int idx = 0) {
   int err = 0;
   char msg[256];
   while ((err = glGetError()) != 0) {
-    sprintf(msg, "GL_ERROR=0x%x\n", err);
+    if (idx) {
+      sprintf(msg, "GL_ERROR[%d]=0x%x\n", idx, err);
+    } else {
+      sprintf(msg, "GL_ERROR=0x%x\n", err);
+    }
 #ifdef ANT_WINDOWS
     OutputDebugString(msg);
 #endif
