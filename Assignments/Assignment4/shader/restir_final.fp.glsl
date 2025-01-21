@@ -18,7 +18,7 @@ uniform int width, height;
 void main()
 {
     uint FragIdx = uint(gl_FragCoord.x + gl_FragCoord.y * width);
-    Reservoir r = reservoirs[FragIdx];
+    Reservoir r = reservoirIn[FragIdx];
 
     out_color.xyz = r.f * r.W;
 }

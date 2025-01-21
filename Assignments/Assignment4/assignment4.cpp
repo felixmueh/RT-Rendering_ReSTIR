@@ -20,6 +20,9 @@
 #include "cbox.h"
 
 
+#define RESERVOIR_BUFFER_IN_BINDING 8
+#define RESERVOIR_BUFFER_OUT_BINDING 9
+
 extern "C" {
 #ifdef _WIN32
 __declspec(dllexport) unsigned int NvOptimusEnablement = 1;
@@ -196,7 +199,8 @@ protected:
 
 	LightList lights;
   int reservoirStructSize;
-  GLuint reservoirBuffer;
+  GLuint reservoirBufferA;
+  GLuint reservoirBufferB;
 
 public:
   CRender() {
@@ -227,17 +231,22 @@ public:
     loadModels();
 
     GLuint program = prgRender.getProgramObject();
-    GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirs");
+    GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirIn");
     glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
     // NOTE: struct size seems to be wrong. If we don't increase size some parts are black.
     // TODO: calculate correct size
     reservoirStructSize *= 2;
 
-    glGenBuffers(1, &reservoirBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBuffer);
+    glGenBuffers(1, &reservoirBufferA);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferA);
     glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, reservoirBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+    // glGenBuffers(1, &reservoirBufferB);
+    // glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferB);
+    // glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
+    // glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -282,13 +291,21 @@ public:
         tmpStrCat(path2Demo, "shader/restir_final.vp.glsl"));
     success &= prgReSTIRFinal.loadFragmentShader(
         tmpStrCat(path2Demo, "shader/restir_final.fp.glsl"));
+    success &= prgReSTIRFinal.link();
+
+    // success &= prgReSTIRTemporal.loadComputeShader(
+    //     tmpStrCat(path2Demo, "shader/restir_temporal.comp"));
+    // success &= prgReSTIRTemporal.link();
+
+    // success &= prgReSTIRSpatial.loadComputeShader(
+    //     tmpStrCat(path2Demo, "shader/restir_spatial.comp"));
+    // success &= prgReSTIRSpatial.link();
 
     if (!success) {
       if (firstTime)
         exit(1);
     }
 
-    prgReSTIRFinal.link();
     CheckGLError();
   }
 
@@ -734,9 +751,13 @@ public:
     prgRender.Uniform1i((char const *)"sample_mode",
                         (int)renderSettings.sampleMode);
 
+    // write to A
+    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
+
+    // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
 
     //
     // restore viewport and render target
@@ -754,7 +775,7 @@ public:
 
     prgReSTIRFinal.bind();
 
-    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, reservoirBuffer);
+    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
     CheckGLError(-1);
     prgReSTIRFinal.Uniform1i((char const *)"width", width);
     CheckGLError(-2);
