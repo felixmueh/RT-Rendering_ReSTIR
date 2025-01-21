@@ -4,6 +4,31 @@
 #include "shared.h.glsl"
 #include "rng.h.glsl"
 
+struct Reservoir {
+    vec3 out_sample;
+    vec3 emission;
+    float weight_sum;
+    int sample_count;
+};
+
+Reservoir new_reservoir() {
+    Reservoir r;
+    r.out_sample = vec3(0.0);
+    r.emission = vec3(0.0);
+    r.weight_sum = 0.0;
+    r.sample_count = 0;
+    return r;
+}
+
+void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float weight, inout Rng rng) {
+    reservoir.sample_count++;
+    reservoir.weight_sum += weight;
+    if (rngRndFloat(rng) < weight / reservoir.weight_sum) {
+        reservoir.out_sample = y;
+        reservoir.emission = emission;
+    }
+}
+
 layout (std430, binding = 6) buffer bEmissiveTriangles
 { 
   GpuEmissiveTriangle emissiveTriangles[];

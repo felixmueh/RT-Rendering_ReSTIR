@@ -49,11 +49,12 @@ typedef enum {
 typedef enum {
   SAMPLE_MODE_UNIFORM = 0,
   SAMPLE_MODE_RIS = 1,
+  SAMPLE_MODE_STREAMING_RIS = 2,
 } SAMPLE_MODE;
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_RIS;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_STREAMING_RIS;
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
@@ -111,11 +112,12 @@ void initializeTweakBar() {
                                {RENDER_MODE_POSITION, "GBuffer - Position"}};
 
   TwEnumVal twSampleModes[] = {{SAMPLE_MODE_UNIFORM, "Uniform"},
-                               {SAMPLE_MODE_RIS, "RIS"}};
+                               {SAMPLE_MODE_RIS, "RIS"},
+                               {SAMPLE_MODE_STREAMING_RIS, "Streaming RIS"}};
 
   TwType twRenderModeTwType = TwDefineEnum("RenderMode", twRenderModes, 3);
 
-  TwType twSampleModeTwType = TwDefineEnum("SampleMode", twSampleModes, 2);
+  TwType twSampleModeTwType = TwDefineEnum("SampleMode", twSampleModes, sizeof(twSampleModes) / sizeof(twSampleModes[0]));
 
   TwAddVarRW(bar, "Rendermode", twRenderModeTwType, &renderSettings.renderMode,
              "group='Renderer'");
@@ -239,9 +241,9 @@ public:
 
       vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
       // TODO: validate that additional lights don't darken the scene
-      // vector<CpuEmissiveTriangle> notSeen =
-      //   generateEmissiveTrianglesForCBoxTest(10, 10, 0.05, 2.0);
-      // emissiveTris.insert(emissiveTris.end(), notSeen.begin(), notSeen.end());
+      vector<CpuEmissiveTriangle> notSeen =
+        generateEmissiveTrianglesForCBoxTest(10, 10, 0.05, 2.0);
+      emissiveTris.insert(emissiveTris.end(), notSeen.begin(), notSeen.end());
       // vector<CpuEmissiveTriangle> emissiveTris;
       // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
 

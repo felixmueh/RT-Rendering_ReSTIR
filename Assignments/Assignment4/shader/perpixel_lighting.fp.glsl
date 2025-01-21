@@ -15,6 +15,7 @@ uniform int sample_mode;
 
 #define SAMPLE_MODE_UNIFORM 0
 #define SAMPLE_MODE_RIS 1
+#define SAMPLE_MODE_STREAMING_RIS 2
 
 uniform mat4 matMVP, matM, matNrml;
 uniform vec3 camPos, lightPos;
@@ -140,6 +141,23 @@ void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rn
     emission = emissions[i];
 }
 
+Reservoir streamingRis(inout Rng rng) {
+    Reservoir r = new_reservoir();
+
+    for (int i = 0; i < N_CANDIDATES; i++) {
+        vec3 pos;
+        float pdf;
+        vec3 emission_inner;
+        sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
+
+        // weight = \hat{p}_q(x_i) / p(x_i)
+        float weight = length(directLight(P, pos, emission_inner, pdf));
+        update_reservoir(r, pos, emission_inner, weight, rng);
+    }
+
+    return r;
+}
+
 void main(void)
 {
     Rng rng;
@@ -168,8 +186,7 @@ void main(void)
                 vec3 f = directLight(P, pos, emission, pdf);
                 color += f;
             }
-
-        } else {
+        } else if (sample_mode == SAMPLE_MODE_RIS) {
             vec3 rnd = rngRndVec3(rng);
             vec3 pos, emission;
             float pdf;
@@ -189,6 +206,25 @@ void main(void)
                     color += f / p * weight / float(N_CANDIDATES);
                 }
             }
+        } else if (sample_mode == SAMPLE_MODE_STREAMING_RIS) {
+            Reservoir r = streamingRis(rng);
+
+            vec3 pos = r.out_sample;
+            vec3 PL = pos-P;
+            vec3 dir = normalize(PL);
+            float dist = length(PL);
+            Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
+            // cast shadow ray, accumulate lighting if no intersection
+            if ( !traceRay( ray ) ) {
+                vec3 f = directLight(P, pos, r.emission, 1.0);
+                if (length(f) > 1e-6) {
+                    float p = length(f);
+                    float r_w = 1.0 / p * (1.0 / float(r.sample_count) * r.weight_sum);
+                    color += f * r_w;
+                }
+            }
+        } else {
+            color = vec3(1.0f, 1.0f, 0.0f);
         }
     }
 
