@@ -8,6 +8,9 @@ out vec4 out_color;
 out vec4 out_pos;
 out vec4 out_normal;
 
+uniform int n_samples;
+#define N_CANDIDATES 16
+
 uniform mat4 matMVP, matM, matNrml;
 uniform vec3 camPos, lightPos;
 uniform float time;
@@ -88,6 +91,42 @@ float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
 layout(early_fragment_tests) in;
 
+void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rng) {
+    vec3 xs[N_CANDIDATES];
+    float ws[N_CANDIDATES];
+    vec3 emissions[N_CANDIDATES];
+
+    weight_sum = 0;
+    for (int i = 0; i < N_CANDIDATES; i++) {
+        vec3 pos;
+        float pdf;
+        vec3 emission_inner;
+        sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
+
+        vec3 PL = pos-P;
+        vec3 dir = normalize(PL);
+        float dist = length(PL);
+
+        float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+        float weight = length(emission_inner * objMatDiffuse * geometry_term / pdf);
+
+        ws[i] = weight;
+        xs[i] = pos;
+        emissions[i] = emission_inner;
+        weight_sum += weight;
+    }
+
+    float r = rngRndFloat(rng);
+    int i = 0;
+    while (r > 0) {
+        r -= ws[i] / weight_sum;
+        i++;
+        // TODO: check no oob
+    }
+    y = xs[i];
+    emission = emissions[i];
+}
+
 void main(void)
 {
     Rng rng;
@@ -97,22 +136,32 @@ void main(void)
     out_pos = vec4(P, 1.0f);
     out_normal = vec4(N, 1.0f);
 
-    vec3 rnd = rngRndVec3(rng);
+    vec3 color = vec3(0.0f);
 
-    vec3 pos, emission;
-    float pdf;
-    sampleLight(rnd, emission, pos, pdf);
+    for (int i = 0; i < n_samples; i++) {
+        vec3 rnd = rngRndVec3(rng);
+        vec3 pos, emission;
+        float pdf;
+        // sampleLight(rnd, emission, pos, pdf);
+        float weight;
+        sampleRis(pos, emission, weight, rng);
 
-    vec3 PL = pos-P;
-    vec3 dir = normalize(PL);
-    float dist = length(PL);
-    Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
-    // cast shadow ray, accumulate lighting if no intersection
-    if ( !traceRay( r ) ) {
-        float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
-        // NOTE: Something is wrong here. Adding more non visible lights makes everything darker.
-        out_color.xyz = emission * objMatDiffuse * geometry_term / pdf;
+        vec3 PL = pos-P;
+        vec3 dir = normalize(PL);
+        float dist = length(PL);
+        Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
+        // cast shadow ray, accumulate lighting if no intersection
+        if ( !traceRay( r ) ) {
+            float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+            // NOTE: Something is wrong here. Adding more non visible lights makes everything darker.
+            vec3 f = emission * objMatDiffuse * geometry_term;
+            float p = length(f);
+            // color += emission * objMatDiffuse * geometry_term / pdf;
+            color += f / p * weight / float(N_CANDIDATES);
+        }
     }
+
+    out_color.xyz = color / float(n_samples);
 
 /*
     vec3 contrib = vec3(0);

@@ -51,6 +51,7 @@ struct RenderSettings {
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
+  int n_samples = 2;
 };
 
 RenderSettings renderSettings;
@@ -115,6 +116,9 @@ void initializeTweakBar() {
       bar, "ClearAcc",
       [](void *data) { renderSettings.resetAccumulationBuffer = true; }, NULL,
       " label='Clear Accumulation Buffer' group='Renderer' ");
+
+  TwAddVarRW(bar, "Samples", TW_TYPE_INT32, &renderSettings.n_samples,
+             " label='Samples' min=1 max=100 step=1 group='RIS' ");
 }
 #endif
 
@@ -536,6 +540,10 @@ public:
     CheckGLError();
     prgRender.Uniform1i((char const *)"height", height);
     CheckGLError();
+
+    prgRender.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
+    CheckGLError();
+
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
