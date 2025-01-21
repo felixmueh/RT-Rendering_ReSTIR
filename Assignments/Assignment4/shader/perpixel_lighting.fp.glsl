@@ -183,8 +183,27 @@ void main(void)
 
     vec3 color = vec3(0.0f);
 
-    for (int i = 0; i < n_samples; i++) {
 
+    // TODO: implement multiple samples for restir (N=4?)
+    // This requires a reservoir buffer for every sample
+    if (sample_mode == SAMPLE_MODE_RESTIR) {
+        Reservoir r = streamingRis(rng);
+
+        vec3 pos = r.out_sample;
+        vec3 PL = pos-P;
+        vec3 dir = normalize(PL);
+        float dist = length(PL);
+        Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
+        if ( traceRay( ray ) ) {
+            r.W = 0.0;
+        }
+        // r.f = vec3(1.0, 0.0, 0.0);
+        reservoirs[FragIdx] = r;
+        out_color.xyz = vec3(0.1, 0.0, 0.0); // Dark red
+        return;
+    }
+
+    for (int i = 0; i < n_samples; i++) {
         if (sample_mode == SAMPLE_MODE_UNIFORM) {
             vec3 rnd = rngRndVec3(rng);
             vec3 pos, emission;
@@ -233,7 +252,8 @@ void main(void)
                 color += r.f * r.W;
             }
         } else {
-            color = vec3(1.0f, 1.0f, 0.0f);
+           out_color.xyz = vec3(1.0f, 1.0f, 0.0f);
+           return;
         }
     }
 

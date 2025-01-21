@@ -631,6 +631,149 @@ public:
     CheckGLError();
   }
 
+  void sceneRenderGBuffersReSTIR(int frame) {
+    //
+    // save current render target and viewport
+    //
+    GLint camRenderTarget, camViewPort[4];
+    glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
+    glGetIntegerv(GL_VIEWPORT, camViewPort);
+
+    //
+    // setup viewport and OpenGL-states
+    //
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
+
+    pDeferredFBO.Bind();
+    CheckGLError();
+
+    const GLenum buffers[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+                               GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, buffers);
+
+#ifdef USE_TWEAK_BAR
+    setShaderUniformsTweakBar();
+#endif
+    CheckGLError();
+
+    // set some render states
+    glEnable(GL_DEPTH_TEST);
+    CheckGLError();
+    glEnable(GL_CULL_FACE);
+    CheckGLError();
+
+    glDepthFunc(GL_EQUAL);
+    // CheckGLError();
+    glDepthMask(GL_FALSE);
+    // CheckGLError();
+
+    // clear screen
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // now bind the program and set the parameters
+    prgRender.bind();
+
+    envmap->bind(&prgRender);
+    CheckGLError();
+
+    // this makro bins the texture object 'tDiffuse' to the shader program
+    // 'prgRender' where the sampler is called 'tObjMapKd', and texture unit #0
+    // is used (essentially this is a bind + Uniform1i)
+    // BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
+    // BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
+
+    // compute some matrices and set uniforms
+    mat4 matM, matNrml;
+    camera.computeMatrices(&trackball, matM, 0);
+    matNrml = transpose(inverse(matM));
+
+    CheckGLError();
+
+    static int sampleIdx = 0;
+    sampleIdx++;
+
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matM", 1, false, value_ptr(matM));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matNrml", 1, false,
+                               value_ptr(matNrml));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matMV", 1, false,
+                               value_ptr(camera.matMV));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matVP", 1, false,
+                               value_ptr(camera.matVP));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matV", 1, false,
+                               value_ptr(camera.matV));
+    CheckGLError();
+
+    CheckGLError();
+    mat4 matMVP = camera.matMVP;
+    prgRender.UniformMatrix4fv((char *)"matMVP", 1, false, value_ptr(matMVP));
+    // prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr(
+    // camera.matMVP ) );
+    CheckGLError();
+
+    prgRender.Uniform3fv((char const *)"camPos", 1, value_ptr(camera.camPos));
+    prgRender.Uniform1f((char const *)"time", (float)frame);
+    prgRender.Uniform1i((char const *)"frameIdx", frame);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"width", width);
+    CheckGLError();
+    prgRender.Uniform1i((char const *)"height", height);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"sample_mode",
+                        (int)renderSettings.sampleMode);
+
+    // render objects
+    scene->draw(&prgRender, RENDER_MATERIALS);
+    CheckGLError();
+
+    //
+    // restore viewport and render target
+    //
+
+    // CheckGLError();
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+
+    const GLenum finalBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, finalBuffers); // We only need to write one color now
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    prgReSTIRFinal.bind();
+
+    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, reservoirBuffer);
+    CheckGLError(-1);
+    prgReSTIRFinal.Uniform1i((char const *)"width", width);
+    CheckGLError(-2);
+    prgReSTIRFinal.Uniform1i((char const *)"height", height);
+    CheckGLError(-3);
+
+    // NOTE: reusing wrap from postprocessing
+    // Is this correct?
+    CheckGLError(1);
+    wrap->draw();
+    CheckGLError(2);
+
+    pDeferredFBO.Disable();
+    glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
+    GLenum buffersCam[] = {(GLenum)camRenderTarget};
+    glDrawBuffers(1, buffersCam);
+    CheckGLError();
+  }
+
   //
   // render post processing
   //
@@ -705,7 +848,13 @@ public:
       clearAccumulationBuffer();
 
     sceneRenderDepth();
-    sceneRenderGBuffers(frame);
+
+    // ReSTIR has its own pipeline / shaders
+    if (renderSettings.sampleMode == SAMPLE_MODE_RESTIR) {
+      sceneRenderGBuffersReSTIR(frame);
+    } else {
+      sceneRenderGBuffers(frame);
+    }
 
     if (offScreenRenderTarget)
       CRenderBase::prepareOffScreenRendering();
