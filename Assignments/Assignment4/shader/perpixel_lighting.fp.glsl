@@ -155,6 +155,19 @@ Reservoir streamingRis(inout Rng rng) {
         update_reservoir(r, pos, emission_inner, weight, rng);
     }
 
+    vec3 pos = r.out_sample;
+    vec3 PL = pos-P;
+    vec3 dir = normalize(PL);
+    float dist = length(PL);
+    r.f = directLight(P, pos, r.emission, 1.0);
+    float p = length(r.f);
+    if (length(p) < 1e-6) {
+        // NOTE: multiply with 0 later so does not matter.
+        r.W = 0.0;
+    } else {
+        r.W = 1.0 / p * (1.0 / float(r.sample_count) * r.weight_sum);
+    }
+
     return r;
 }
 
@@ -216,12 +229,7 @@ void main(void)
             Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
             if ( !traceRay( ray ) ) {
-                vec3 f = directLight(P, pos, r.emission, 1.0);
-                if (length(f) > 1e-6) {
-                    float p = length(f);
-                    float r_w = 1.0 / p * (1.0 / float(r.sample_count) * r.weight_sum);
-                    color += f * r_w;
-                }
+                color += r.f * r.W;
             }
         } else {
             color = vec3(1.0f, 1.0f, 0.0f);

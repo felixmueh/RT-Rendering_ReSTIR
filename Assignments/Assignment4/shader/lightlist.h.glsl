@@ -8,6 +8,8 @@ struct Reservoir {
     vec3 out_sample;
     vec3 emission;
     float weight_sum;
+    float W;
+    vec3 f;
     int sample_count;
 };
 
@@ -15,6 +17,7 @@ Reservoir new_reservoir() {
     Reservoir r;
     r.out_sample = vec3(0.0);
     r.emission = vec3(0.0);
+    r.W = 0.0;
     r.weight_sum = 0.0;
     r.sample_count = 0;
     return r;
