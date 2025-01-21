@@ -184,8 +184,10 @@ void main(void)
             // cast shadow ray, accumulate lighting if no intersection
             if ( !traceRay( r ) ) {
                 vec3 f = directLight(P, pos, emission, 1.0);
-                float p = length(f);
-                color += f / p * weight / float(N_CANDIDATES);
+                if (length(f) > 1e-6) {
+                    float p = length(f);
+                    color += f / p * weight / float(N_CANDIDATES);
+                }
             }
         }
     }
