@@ -42,6 +42,11 @@ layout (std430, binding = 7) buffer bEmissiveCDF
   float emissiveCDF[];
 };
 
+layout (std430, binding = 8) buffer bReservoirs
+{
+  Reservoir reservoirs[];
+};
+
 uniform float totalArea;
 uniform int nEmissiveTriangles;
 

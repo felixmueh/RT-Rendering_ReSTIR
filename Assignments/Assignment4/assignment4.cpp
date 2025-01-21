@@ -185,6 +185,8 @@ protected:
   Renderbuffer pDeferredRenderBuffer;
 
 	LightList lights;
+  int reservoirStructSize;
+  GLuint reservoirBuffer;
 
 public:
   CRender() {
@@ -213,6 +215,16 @@ public:
     loadShaders(true);
     createTextures();
     loadModels();
+
+    GLuint program = prgRender.getProgramObject();
+    GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirs");
+    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
+
+    glGenBuffers(1, &reservoirBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, reservoirBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     // call it here so that these textures show up at the end in the texture
     // manager
