@@ -46,8 +46,14 @@ typedef enum {
   RENDER_MODE_POSITION = 2,
 } RENDER_MODE;
 
+typedef enum {
+  SAMPLE_MODE_UNIFORM = 0,
+  SAMPLE_MODE_RIS = 1,
+} SAMPLE_MODE;
+
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_RIS;
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
@@ -103,12 +109,22 @@ void initializeTweakBar() {
   TwEnumVal twRenderModes[] = {{RENDER_MODE_SHADED, "Shaded"},
                                {RENDER_MODE_NORMAL, "GBuffer - Normal"},
                                {RENDER_MODE_POSITION, "GBuffer - Position"}};
+
+  TwEnumVal twSampleModes[] = {{SAMPLE_MODE_UNIFORM, "Uniform"},
+                               {SAMPLE_MODE_RIS, "RIS"}};
+
   TwType twRenderModeTwType = TwDefineEnum("RenderMode", twRenderModes, 3);
+
+  TwType twSampleModeTwType = TwDefineEnum("SampleMode", twSampleModes, 2);
+
   TwAddVarRW(bar, "Rendermode", twRenderModeTwType, &renderSettings.renderMode,
              "group='Renderer'");
   TwAddVarRW(bar, "Accumulation", TW_TYPE_BOOLCPP,
              &renderSettings.enableAccumulation,
              " label='Accumulation' group='Renderer' ");
+
+  TwAddVarRW(bar, "SampleMode", twSampleModeTwType, &renderSettings.sampleMode,
+              "group='RIS'");
   TwAddVarRW(
       bar, "AccumulationEWA", TW_TYPE_FLOAT, &renderSettings.accumulationEWA,
       " label='Accumulation EWA' min=0.01 max=1.0 step=0.01 group='Renderer' ");
@@ -119,6 +135,8 @@ void initializeTweakBar() {
 
   TwAddVarRW(bar, "Samples", TW_TYPE_INT32, &renderSettings.n_samples,
              " label='Samples' min=1 max=100 step=1 group='RIS' ");
+
+
 }
 #endif
 
@@ -543,6 +561,9 @@ public:
 
     prgRender.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
     CheckGLError();
+
+    prgRender.Uniform1i((char const *)"sample_mode",
+                        (int)renderSettings.sampleMode);
 
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
