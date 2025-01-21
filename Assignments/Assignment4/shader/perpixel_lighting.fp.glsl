@@ -16,6 +16,7 @@ uniform int sample_mode;
 #define SAMPLE_MODE_UNIFORM 0
 #define SAMPLE_MODE_RIS 1
 #define SAMPLE_MODE_STREAMING_RIS 2
+#define SAMPLE_MODE_RESTIR 3
 
 uniform mat4 matMVP, matM, matNrml;
 uniform vec3 camPos, lightPos;

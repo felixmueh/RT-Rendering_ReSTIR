@@ -50,11 +50,12 @@ typedef enum {
   SAMPLE_MODE_UNIFORM = 0,
   SAMPLE_MODE_RIS = 1,
   SAMPLE_MODE_STREAMING_RIS = 2,
+  SAMPLE_MODE_RESTIR = 3,
 } SAMPLE_MODE;
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_STREAMING_RIS;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_RESTIR;
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
@@ -113,7 +114,8 @@ void initializeTweakBar() {
 
   TwEnumVal twSampleModes[] = {{SAMPLE_MODE_UNIFORM, "Uniform"},
                                {SAMPLE_MODE_RIS, "RIS"},
-                               {SAMPLE_MODE_STREAMING_RIS, "Streaming RIS"}};
+                               {SAMPLE_MODE_STREAMING_RIS, "Streaming RIS"},
+                               {SAMPLE_MODE_RESTIR, "ReSTIR"}};
 
   TwType twRenderModeTwType = TwDefineEnum("RenderMode", twRenderModes, 3);
 
