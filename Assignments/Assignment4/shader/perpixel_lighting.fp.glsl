@@ -198,7 +198,7 @@ void main(void)
             r.W = 0.0;
         }
         // r.f = vec3(1.0, 0.0, 0.0);
-        reservoirIn[FragIdx] = r;
+        reservoirOut[FragIdx] = r;
         out_color.xyz = vec3(0.1, 0.0, 0.0); // Dark red
         return;
     }

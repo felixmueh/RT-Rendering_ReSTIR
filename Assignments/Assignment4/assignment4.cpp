@@ -240,13 +240,12 @@ public:
     glGenBuffers(1, &reservoirBufferA);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferA);
     glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-    // glGenBuffers(1, &reservoirBufferB);
-    // glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferB);
-    // glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    // glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    glGenBuffers(1, &reservoirBufferB);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferB);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -293,13 +292,13 @@ public:
         tmpStrCat(path2Demo, "shader/restir_final.fp.glsl"));
     success &= prgReSTIRFinal.link();
 
-    // success &= prgReSTIRTemporal.loadComputeShader(
-    //     tmpStrCat(path2Demo, "shader/restir_temporal.comp"));
-    // success &= prgReSTIRTemporal.link();
+    success &= prgReSTIRTemporal.loadComputeShader(
+        tmpStrCat(path2Demo, "shader/restir_temporal.comp"));
+    success &= prgReSTIRTemporal.link();
 
-    // success &= prgReSTIRSpatial.loadComputeShader(
-    //     tmpStrCat(path2Demo, "shader/restir_spatial.comp"));
-    // success &= prgReSTIRSpatial.link();
+    success &= prgReSTIRSpatial.loadComputeShader(
+        tmpStrCat(path2Demo, "shader/restir_spatial.comp"));
+    success &= prgReSTIRSpatial.link();
 
     if (!success) {
       if (firstTime)
@@ -752,11 +751,12 @@ public:
                         (int)renderSettings.sampleMode);
 
     // write to A
-    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
 
+    // NOTE: required?
     // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
 
     //
@@ -775,7 +775,7 @@ public:
 
     prgReSTIRFinal.bind();
 
-    // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
     CheckGLError(-1);
     prgReSTIRFinal.Uniform1i((char const *)"width", width);
     CheckGLError(-2);

@@ -46,9 +46,9 @@ layout(std430, binding = 8) buffer bReservoirIn {
     Reservoir reservoirIn[];
 };
 
-// layout(std430, binding = 9) buffer bReservoirOut {
-//     Reservoir reservoirOut[];
-// };
+layout(std430, binding = 9) buffer bReservoirOut {
+    Reservoir reservoirOut[];
+};
 
 
 uniform float totalArea;
