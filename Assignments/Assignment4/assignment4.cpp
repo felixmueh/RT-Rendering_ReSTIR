@@ -225,6 +225,9 @@ public:
     GLuint program = prgRender.getProgramObject();
     GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirs");
     glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
+    // NOTE: struct size seems to be wrong. If we don't increase size some parts are black.
+    // TODO: calculate correct size
+    reservoirStructSize *= 2;
 
     glGenBuffers(1, &reservoirBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBuffer);
