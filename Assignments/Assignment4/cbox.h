@@ -27,18 +27,18 @@ void addSquareLight(
     emissiveTris.push_back(CpuEmissiveTriangle(s1, s3, s4, color));
 }
 
-std::vector<CpuEmissiveTriangle> generateEmissiveTrianglesForCBoxTest()
-{
+std::vector<CpuEmissiveTriangle> generateEmissiveTrianglesForCBoxTest(
+    int gridX = 2,
+    int gridZ = 2,
+    float padding = 0.1,
+    float zPos = 0.40,
+    float size = 0.1f
+) {
     std::vector<CpuEmissiveTriangle> emissiveTris;
-    int gridX = 2;
-    int gridZ = 2;
-    float padding = 0.05;
-    float zPos = 0.40;
     float min_x = -0.5 + padding;
     float max_x = 0.5 - padding;
     float min_y = -0.5 + padding;
     float max_y = 0.5 - padding;
-    float size = 0.1f;
 
     for (int x = 0; x < gridX; x++) {
         for (int z = 0; z < gridZ; z++) {
