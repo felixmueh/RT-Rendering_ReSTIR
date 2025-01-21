@@ -1,11 +1,4 @@
 #include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
-#include "lightlist.h"
 
 CpuEmissiveTriangle::CpuEmissiveTriangle(vec3 _p1, vec3 _p2, vec3 _p3, vec3 _emission)
 	: p1(_p1), p2(_p2), p3(_p3), emission(_emission) { }
@@ -44,6 +37,8 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
     }
     std::cout << cdf.back();
     assert(cdf.back() >= (1.0 - 1e-10));
+    assert(cdf.back() <= (1.0 + 1e-10));
+    cdf.back() = 1.0f;
 }
 
 void LightList::uploadLightList2GPU()

@@ -110,9 +110,9 @@ void main(void)
     // cast shadow ray, accumulate lighting if no intersection
     if ( !traceRay( r ) ) {
         float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+        // NOTE: Something is wrong here. Adding more non visible lights makes everything darker.
         out_color.xyz = emission * objMatDiffuse * geometry_term / pdf;
     }
-
 
 /*
     vec3 contrib = vec3(0);

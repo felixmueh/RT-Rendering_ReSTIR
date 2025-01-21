@@ -53,7 +53,7 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
 
 uint sampleTriangle(float rnd) {
   uint i = 0;
-  while(i < nEmissiveTriangles-1 && emissiveCDF[i] < rnd) {
+  while(emissiveCDF[i] < rnd) {
     i++;
   }
   return i;
