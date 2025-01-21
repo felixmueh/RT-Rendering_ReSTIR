@@ -220,7 +220,8 @@ public:
 
     GLuint program = prgRender.getProgramObject();
     GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirs");
-    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
+    GLenum enums[] = { GL_BUFFER_DATA_SIZE };
+    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &reservoirStructSize);
 
     glGenBuffers(1, &reservoirBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBuffer);
