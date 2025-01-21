@@ -103,12 +103,14 @@ void main(void)
     float pdf;
     sampleLight(rnd, emission, pos, pdf);
 
-    vec3 dir = pos-P;
-    Ray r = createRay(P + N * 1e-5, normalize(dir), 0, length(dir)-1e-3);
+    vec3 PL = pos-P;
+    vec3 dir = normalize(PL);
+    float dist = length(PL);
+    Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
     // cast shadow ray, accumulate lighting if no intersection
     if ( !traceRay( r ) ) {
-        dir = normalize(dir);
-        out_color.xyz = emission * objMatDiffuse * max(dot(dir, N), 0.0) / (dot(dir, dir));
+        float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+        out_color.xyz = emission * objMatDiffuse * geometry_term / pdf;
     }
 
 

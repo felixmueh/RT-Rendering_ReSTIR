@@ -44,7 +44,7 @@ std::vector<CpuEmissiveTriangle> generateEmissiveTrianglesForCBoxTest()
         for (int z = 0; z < gridZ; z++) {
             float xPos = min_x + (max_x - min_x) * x / (gridX - 1);
             float yPos = min_y + (max_y - min_y) * z / (gridZ - 1);
-            addSquareLight(emissiveTris, glm::vec3(xPos, yPos, zPos), size);
+            addSquareLight(emissiveTris, glm::vec3(xPos, yPos, zPos), size, glm::vec3(1.0f / 0.04));
         }
     }
 
