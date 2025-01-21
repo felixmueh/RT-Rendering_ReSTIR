@@ -53,6 +53,10 @@ In case some of these prove to be significantly more challenging than others we 
 - Dominik Wüst
 
 # TODOs
+- Buffer management
+    - Resize (monotone) buffer when resizing window
+    - Reset buffer when resizing window
+    - Initialze buffers with 0 (reset uniform)
 - How do we calculate multiple (n_sample=4) samples -> we need to store multiple reservoirs per pixel!
 - Spacial / temporal datastructures
     - Clamp previous frames M to at most 20x current frames M

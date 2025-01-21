@@ -174,6 +174,7 @@ Reservoir streamingRis(inout Rng rng) {
 
 void main(void)
 {
+    // TODO: initialze last frame's reservoir buffer to 0 in the first frame?
     Rng rng;
     uint FragIdx = uint(gl_FragCoord.x + gl_FragCoord.y * width);
     rngInit(rng, uint64_t(frameIdx), uint64_t(FragIdx));
@@ -197,7 +198,6 @@ void main(void)
         if ( traceRay( ray ) ) {
             r.W = 0.0;
         }
-        // r.f = vec3(1.0, 0.0, 0.0);
         reservoirOut[FragIdx] = r;
         out_color.xyz = vec3(0.1, 0.0, 0.0); // Dark red
         return;

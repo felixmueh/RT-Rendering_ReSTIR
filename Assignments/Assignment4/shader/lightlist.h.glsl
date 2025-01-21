@@ -42,11 +42,11 @@ layout (std430, binding = 7) buffer bEmissiveCDF
   float emissiveCDF[];
 };
 
-layout(std430, binding = 8) buffer bReservoirIn {
+layout(std430, binding = RESERVOIR_BUFFER_IN_BINDING) buffer bReservoirIn {
     Reservoir reservoirIn[];
 };
 
-layout(std430, binding = 9) buffer bReservoirOut {
+layout(std430, binding = RESERVOIR_BUFFER_OUT_BINDING) buffer bReservoirOut {
     Reservoir reservoirOut[];
 };
 

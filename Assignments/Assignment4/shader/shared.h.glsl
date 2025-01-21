@@ -21,6 +21,9 @@
 
 #endif
 
+#define RESERVOIR_BUFFER_IN_BINDING 8
+#define RESERVOIR_BUFFER_OUT_BINDING 9
+
 struct GpuEmissiveTriangle {
     FLOAT data[12]; // Stores (p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, emission.x, emission.y, emission.z)
 };

@@ -19,9 +19,7 @@
 #include "lightlist.h"
 #include "cbox.h"
 
-
-#define RESERVOIR_BUFFER_IN_BINDING 8
-#define RESERVOIR_BUFFER_OUT_BINDING 9
+#define N_ITERATIONS_SPATIAL 2
 
 extern "C" {
 #ifdef _WIN32
@@ -182,6 +180,7 @@ protected:
   GLSLProgram prgRender; // GLSL programs, each one can keep a vertex and a
                          // fragment shader
   IMWrap *wrap;          // wrapper for OpenGL immediate calls
+  IMWrap *wrapReSTIRFinal;
 
   GLSLProgram prgPostProc; // GLSL programs, each one can keep a vertex and a
                            // fragment shader
@@ -233,8 +232,9 @@ public:
     GLuint program = prgRender.getProgramObject();
     GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirIn");
     glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
-    // NOTE: struct size seems to be wrong. If we don't increase size some parts are black.
-    // TODO: calculate correct size
+
+    // NOTE: wrong size when resizing
+    // TODO: resize buffer when resizing window
     reservoirStructSize *= 2;
 
     glGenBuffers(1, &reservoirBufferA);
@@ -304,6 +304,10 @@ public:
       if (firstTime)
         exit(1);
     }
+
+    CheckGLError();
+
+    wrapReSTIRFinal = createWrapper(prgReSTIRFinal);
 
     CheckGLError();
   }
@@ -739,9 +743,9 @@ public:
     prgRender.Uniform1i((char const *)"frameIdx", frame);
     CheckGLError();
 
-    prgRender.Uniform1i((char const *)"width", width);
+    prgRender.Uniform1i((char const *)"width", w);
     CheckGLError();
-    prgRender.Uniform1i((char const *)"height", height);
+    prgRender.Uniform1i((char const *)"height", h);
     CheckGLError();
 
     prgRender.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
@@ -751,21 +755,60 @@ public:
                         (int)renderSettings.sampleMode);
 
     // write to A
+    // reservoirBufferB contains the result of the previous frame
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
 
-    // NOTE: required?
-    // glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
-
     //
     // restore viewport and render target
     //
 
-    // CheckGLError();
+    CheckGLError();
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    // ====================================
+    // Temporal Pass
+    // ====================================
+
+    prgReSTIRTemporal.bind();
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
+
+    prgReSTIRTemporal.Uniform1i("width",  w);
+    prgReSTIRTemporal.Uniform1i("height", h);
+
+    glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    // ====================================
+    // Spatial Pass
+    // ====================================
+
+    for (int i = 0; i < N_ITERATIONS_SPATIAL; i++) {
+      prgReSTIRSpatial.bind();
+
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB);
+
+      prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
+      prgReSTIRSpatial.Uniform1i((char const *)"height", h);
+
+      glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      std::swap(reservoirBufferA, reservoirBufferB);
+    }
+    std::swap(reservoirBufferA, reservoirBufferB);
+
+    // ====================================
+    // Render ReSTIR to screen
+    // ====================================
 
     const GLenum finalBuffers[1] = { GL_COLOR_ATTACHMENT0 };
     glDrawBuffers(1, finalBuffers); // We only need to write one color now
@@ -775,17 +818,15 @@ public:
 
     prgReSTIRFinal.bind();
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
     CheckGLError(-1);
-    prgReSTIRFinal.Uniform1i((char const *)"width", width);
+    prgReSTIRFinal.Uniform1i((char const *)"width", w);
     CheckGLError(-2);
-    prgReSTIRFinal.Uniform1i((char const *)"height", height);
+    prgReSTIRFinal.Uniform1i((char const *)"height", h);
     CheckGLError(-3);
 
-    // NOTE: reusing wrap from postprocessing
-    // Is this correct?
     CheckGLError(1);
-    wrap->draw();
+    wrapReSTIRFinal->draw();
     CheckGLError(2);
 
     pDeferredFBO.Disable();

@@ -21,5 +21,8 @@ void main()
 
     int idx = pixel.y * width + pixel.x;
 
-    reservoirOut[idx] = reservoirIn[idx];
+    // reservoirOut contains information about the current frame
+    // reservoirIn contains information about the previous frame
+    // Write to reservoirOut, read from both
+    // reservoirOut[idx] = reservoirIn[idx];
 }

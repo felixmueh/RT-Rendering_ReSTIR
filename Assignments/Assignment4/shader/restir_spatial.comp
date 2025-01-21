@@ -21,5 +21,7 @@ void main()
 
     int idx = pixel.y * width + pixel.x;
 
+    // Read from reservoirIn write to reservoirOut
+
     reservoirOut[idx] = reservoirIn[idx];
 }
