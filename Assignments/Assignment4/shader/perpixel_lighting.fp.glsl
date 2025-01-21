@@ -127,11 +127,14 @@ void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rn
     }
 
     float r = rngRndFloat(rng);
+    float c_sum = 0.0;
     int i = 0;
-    while (r > 0) {
-        r -= ws[i] / weight_sum;
+    while (i < N_CANDIDATES) {
+        c_sum += ws[i] / weight_sum;
+        if (r < c_sum) {
+            break;
+        }
         i++;
-        // TODO: check no oob
     }
     y = xs[i];
     emission = emissions[i];
