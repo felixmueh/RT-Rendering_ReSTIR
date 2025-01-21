@@ -53,9 +53,13 @@ In case some of these prove to be significantly more challenging than others we 
 - Dominik Wüst
 
 # TODOs
-- pdf for area Lights
-- check cdf and triangle sampling
-- Resampling / Environment map / lightlist
+- How do we calculate multiple (n_sample=4) samples -> we need to store multiple reservoirs per pixel!
 - Spacial / temporal datastructures
+    - Clamp previous frames M to at most 20x current frames M
+    - -> bounds influence of temporal information
 - Spacial / temporal reuse
+    - Compute motion vectors for temporal reuse
 - Performance light selection (binary search or better)
+    - (Alias Table Walker 1974)
+- Include light power during sampling (cdf calculation) (if we have lights with different power)
+- Generate candidates (25%) using importance sampling on the envmap
