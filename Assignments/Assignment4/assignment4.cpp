@@ -185,6 +185,10 @@ protected:
   GLSLProgram prgDepth;    // GLSL programs, each one can keep a vertex and a
                            // fragment shader
 
+  GLSLProgram prgReSTIRTemporal;
+  GLSLProgram prgReSTIRSpatial;
+  GLSLProgram prgReSTIRFinal;
+
   OGLTexture *tGPosition, *tGNormal, *tGColor;
 
   FramebufferObject pDeferredFBO;
@@ -271,6 +275,23 @@ public:
       lights.initialize(emissiveTris);
   }
 
+  void loadShadersReSTIR(bool firstTime = false) {
+    bool success = true;
+
+    success &= prgReSTIRFinal.loadVertexShader(
+        tmpStrCat(path2Demo, "shader/restir_final.vp.glsl"));
+    success &= prgReSTIRFinal.loadFragmentShader(
+        tmpStrCat(path2Demo, "shader/restir_final.fp.glsl"));
+
+    if (!success) {
+      if (firstTime)
+        exit(1);
+    }
+
+    prgReSTIRFinal.link();
+    CheckGLError();
+  }
+
   //
   // load vertex and fragment shaders
   //
@@ -293,6 +314,8 @@ public:
     glBindFragDataLocation(prgRender.getProgramObject(), 2, "out_normal");
 
     CheckGLError();
+
+    loadShadersReSTIR(firstTime);
 
 #ifdef USE_TWEAK_BAR
     if (firstTime) {
