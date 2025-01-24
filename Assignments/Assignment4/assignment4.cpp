@@ -19,8 +19,6 @@
 #include "lightlist.h"
 #include "cbox.h"
 
-#define N_ITERATIONS_SPATIAL 2
-
 extern "C" {
 #ifdef _WIN32
 __declspec(dllexport) unsigned int NvOptimusEnablement = 1;
@@ -60,7 +58,8 @@ struct RenderSettings {
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
-  int n_samples = 2;
+  int n_samples = 4;
+  int n_spatial_iterations = 2;
 };
 
 RenderSettings renderSettings;
@@ -176,6 +175,9 @@ void initializeTweakBar() {
       bar, "ThresholdNormal", TW_TYPE_FLOAT, &restirSettings.threshold_normal,
       " label='Threshold Normal' min=0.0 max=360.0 step=1.0 group='ReSTIR' ");
 
+  TwAddVarRW(bar, "SpatialIterations", TW_TYPE_INT32, &renderSettings.n_spatial_iterations,
+             " label='Spatial Iterations' min=1 max=10 step=1 group='ReSTIR' ");
+
 }
 #endif
 
@@ -234,6 +236,7 @@ protected:
 
   GLuint gBufferCurrent;
   GLuint gBufferLastFrame;
+  uint n_samples_allocated;
 
   mat4x4 old_matVP;
 
@@ -269,9 +272,7 @@ public:
     reservoirStructSize = getGPUStructSize(program, "bReservoirIn");
     reservoirPerSampleSize = reservoirStructSize * width * height;
 
-    // Create two buffers by calling the function twice
-    createBuffer(reservoirBufferA, reservoirStructSize * N_SAMPLES_ReSTIR, width, height);
-    createBuffer(reservoirBufferB, reservoirStructSize * N_SAMPLES_ReSTIR, width, height);
+    createReservoirBuffers(true);
 
     int intGbufferStructSize = getGPUStructSize(program, "bGBuffer");
 
@@ -484,6 +485,16 @@ public:
         glDeleteBuffers(1, &buffer);
         buffer = 0; // Reset to avoid dangling references
     }
+  }
+
+  void createReservoirBuffers(bool firstTime = false) {
+    if (!firstTime) {
+      deleteBuffer(reservoirBufferA);
+      deleteBuffer(reservoirBufferB);
+    }
+    n_samples_allocated = renderSettings.n_samples;
+    createBuffer(reservoirBufferA, reservoirStructSize * renderSettings.n_samples, width, height);
+    createBuffer(reservoirBufferB, reservoirStructSize * renderSettings.n_samples, width, height);
   }
 
   void firstFramePrep() {
@@ -723,6 +734,12 @@ public:
   }
 
   void sceneRenderGBuffersReSTIR(int frame) {
+
+    // Reallocate buffers if the number of samples changed
+    if (renderSettings.n_samples != n_samples_allocated) {
+      createReservoirBuffers();
+    }
+
     //
     // save current render target and viewport
     //
@@ -859,7 +876,7 @@ public:
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
 
-    for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+    for (int i = 0; i < renderSettings.n_samples; i++) {
       glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
       glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
 
@@ -886,8 +903,8 @@ public:
     prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
 
-    for (int _j = 0; _j < N_ITERATIONS_SPATIAL; _j++) {
-      for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+    for (int _j = 0; _j < renderSettings.n_spatial_iterations; _j++) {
+      for (int i = 0; i < renderSettings.n_samples; i++) {
         glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
         glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
         glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
@@ -919,6 +936,7 @@ public:
     prgReSTIRFinal.Uniform1i((char const *)"height", h);
     CheckGLError(-3);
     prgReSTIRFinal.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRFinal.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
 
     CheckGLError(1);
     wrapReSTIRFinal->draw();

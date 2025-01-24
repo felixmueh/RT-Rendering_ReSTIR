@@ -26,9 +26,6 @@
 #define GBUFFER_BINDING 10
 #define GBUFFER_LAST_FRAME_BINDING 11
 
-// TODO: allow to modify in gui? --> realloc buffers
-#define N_SAMPLES_ReSTIR 4
-
 struct GpuEmissiveTriangle {
     FLOAT data[12]; // Stores (p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, emission.x, emission.y, emission.z)
 };

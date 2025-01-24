@@ -182,7 +182,7 @@ void main(void)
     // TODO: implement multiple samples for restir (N=4?)
     // This requires a reservoir buffer for every sample
     if (sample_mode == SAMPLE_MODE_RESTIR) {
-        for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+        for (int i = 0; i < n_samples; i++) {
             Reservoir r = streamingRis(rng);
 
             vec3 pos = r.out_sample;
