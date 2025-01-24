@@ -29,6 +29,14 @@ Reservoir new_reservoir() {
     return r;
 }
 
+vec3 directLight(vec3 pos, vec3 light_pos, vec3 emission, vec3 normal, vec3 albedo) {
+    vec3 PL = light_pos-pos;
+    vec3 dir = normalize(PL);
+    float dist = length(PL);
+    float geometry_term = max(dot(dir, normal), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+    return emission * albedo * geometry_term;
+}
+
 void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float weight, inout Rng rng) {
     reservoir.sample_count++;
     reservoir.weight_sum += weight;

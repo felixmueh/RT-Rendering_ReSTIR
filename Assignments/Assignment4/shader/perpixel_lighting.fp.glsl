@@ -98,14 +98,8 @@ float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
 layout(early_fragment_tests) in;
 
-vec3 directLight(vec3 pos, vec3 light_pos, vec3 emission, float pdf) {
-    vec3 PL = light_pos-pos;
-    vec3 dir = normalize(PL);
-    float dist = length(PL);
-    Ray r = createRay(pos + N * 1e-5, dir, 0, dist-1e-3);
-    // cast shadow ray, accumulate lighting if no intersection
-    float geometry_term = max(dot(dir, N), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
-    return emission * objMatDiffuse * geometry_term / pdf;
+vec3 directLightPerpixel(vec3 pos, vec3 light_pos, vec3 emission, float pdf) {
+    return directLight(pos, light_pos, emission, N, objMatDiffuse) / pdf;
 }
 
 void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rng) {
@@ -120,7 +114,7 @@ void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rn
         vec3 emission_inner;
         sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
 
-        float weight = length(directLight(P, pos, emission_inner, pdf));
+        float weight = length(directLightPerpixel(P, pos, emission_inner, pdf));
 
         ws[i] = weight;
         xs[i] = pos;
@@ -152,7 +146,7 @@ Reservoir streamingRis(inout Rng rng) {
         sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
 
         // weight = \hat{p}_q(x_i) / p(x_i)
-        float weight = length(directLight(P, pos, emission_inner, pdf));
+        float weight = length(directLightPerpixel(P, pos, emission_inner, pdf));
         update_reservoir(r, pos, emission_inner, weight, rng);
     }
 
@@ -160,7 +154,7 @@ Reservoir streamingRis(inout Rng rng) {
     vec3 PL = pos-P;
     vec3 dir = normalize(PL);
     float dist = length(PL);
-    r.f = directLight(P, pos, r.emission, 1.0);
+    r.f = directLightPerpixel(P, pos, r.emission, 1.0);
     float p = length(r.f);
     if (length(p) < 1e-6) {
         // NOTE: multiply with 0 later so does not matter.
@@ -220,7 +214,7 @@ void main(void)
             Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
             if ( !traceRay( r ) ) {
-                vec3 f = directLight(P, pos, emission, pdf);
+                vec3 f = directLightPerpixel(P, pos, emission, pdf);
                 color += f;
             }
         } else if (sample_mode == SAMPLE_MODE_RIS) {
@@ -237,7 +231,7 @@ void main(void)
             Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
             if ( !traceRay( r ) ) {
-                vec3 f = directLight(P, pos, emission, 1.0);
+                vec3 f = directLightPerpixel(P, pos, emission, 1.0);
                 if (length(f) > 1e-6) {
                     float p = length(f);
                     color += f / p * weight / float(N_CANDIDATES);
