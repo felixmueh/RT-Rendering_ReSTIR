@@ -13,6 +13,12 @@ struct Reservoir {
     int sample_count;
 };
 
+struct GBufferInfo {
+    vec3 normal;
+    vec3 position;
+    vec3 albedo;
+};
+
 Reservoir new_reservoir() {
     Reservoir r;
     r.out_sample = vec3(0.0);
@@ -50,6 +56,9 @@ layout(std430, binding = RESERVOIR_BUFFER_OUT_BINDING) buffer bReservoirOut {
     Reservoir reservoirOut[];
 };
 
+layout(std430, binding = GBUFFER_BINDING) buffer bGBuffer {
+    GBufferInfo gBuffer[];
+};
 
 uniform float totalArea;
 uniform int nEmissiveTriangles;

@@ -201,6 +201,8 @@ protected:
   GLuint reservoirBufferA;
   GLuint reservoirBufferB;
 
+  GLuint gBuffer;
+
 public:
   CRender() {
     initializeOpenGLDebugCallback();
@@ -230,17 +232,19 @@ public:
     loadModels();
 
     GLuint program = prgRender.getProgramObject();
-    GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirIn");
-    GLenum enums[] = { GL_BUFFER_DATA_SIZE };
-    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &reservoirStructSize);
+    reservoirStructSize = getGPUStructSize(program, "bReservoirIn");
 
     // NOTE: wrong size when resizing
     // TODO: resize buffer when resizing window
     //reservoirStructSize *= 2;
 
     // Create two buffers by calling the function twice
-    createReservoirBuffer(reservoirBufferA, reservoirStructSize, width, height);
-    createReservoirBuffer(reservoirBufferB, reservoirStructSize, width, height);
+    createBuffer(reservoirBufferA, reservoirStructSize, width, height);
+    createBuffer(reservoirBufferB, reservoirStructSize, width, height);
+
+    int intGbufferStructSize = getGPUStructSize(program, "bGBuffer");
+
+    createBuffer(gBuffer, intGbufferStructSize, width, height);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -260,8 +264,9 @@ public:
     if(wrapReSTIRFinal)
       delete wrapReSTIRFinal;
 
-    deleteReservoirBuffer(reservoirBufferA);
-    deleteReservoirBuffer(reservoirBufferB);
+    deleteBuffer(reservoirBufferA);
+    deleteBuffer(reservoirBufferB);
+    deleteBuffer(gBuffer);
 
     TwTerminate();
   }
@@ -425,9 +430,17 @@ public:
     FramebufferObject::Disable();
   }
 
+    int getGPUStructSize(GLuint program, const char* blockName) {
+      GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, blockName);
+      GLenum enums[] = { GL_BUFFER_DATA_SIZE };
+      int structSize;
+      glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &structSize);
+      return structSize;
+    }
+
   // Function to create a single OpenGL Shader Storage Buffer
-  void createReservoirBuffer(GLuint &buffer, GLsizeiptr reservoirStructSize, int width, int height) {
-    GLsizeiptr bufferSize = reservoirStructSize * width * height;
+  void createBuffer(GLuint &buffer, GLsizeiptr structSize, int width, int height) {
+    GLsizeiptr bufferSize = structSize * width * height;
 
     glGenBuffers(1, &buffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
@@ -436,7 +449,7 @@ public:
   }
 
   // Function to delete a single OpenGL Shader Storage Buffer
-  void deleteReservoirBuffer(GLuint &buffer) {
+  void deleteBuffer(GLuint &buffer) {
     if (buffer != 0) {
         glDeleteBuffers(1, &buffer);
         buffer = 0; // Reset to avoid dangling references
@@ -784,6 +797,7 @@ public:
     // write to A
     // reservoirBufferB contains the result of the previous frame
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
@@ -806,6 +820,7 @@ public:
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
 
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
@@ -823,6 +838,7 @@ public:
 
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
 
       prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
       prgReSTIRSpatial.Uniform1i((char const *)"height", h);
@@ -846,6 +862,7 @@ public:
     prgReSTIRFinal.bind();
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
     CheckGLError(-1);
     prgReSTIRFinal.Uniform1i((char const *)"width", w);
     CheckGLError(-2);
@@ -927,12 +944,12 @@ public:
         height = h;
 
         // recreate screenspace reservoir buffer size
-        deleteReservoirBuffer(reservoirBufferA);
-        deleteReservoirBuffer(reservoirBufferB);
+        deleteBuffer(reservoirBufferA);
+        deleteBuffer(reservoirBufferB);
 
         // Create two buffers by calling the function twice
-        createReservoirBuffer(reservoirBufferA, reservoirStructSize, width, height);
-        createReservoirBuffer(reservoirBufferB, reservoirStructSize, width, height);
+        createBuffer(reservoirBufferA, reservoirStructSize, width, height);
+        createBuffer(reservoirBufferB, reservoirStructSize, width, height);
     }
 
     useAccumulationBuffer =
