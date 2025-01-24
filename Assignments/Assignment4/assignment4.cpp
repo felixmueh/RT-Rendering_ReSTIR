@@ -300,9 +300,6 @@ public:
 
       vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
       // TODO: validate that additional lights don't darken the scene
-      vector<CpuEmissiveTriangle> notSeen =
-        generateEmissiveTrianglesForCBoxTest(10, 10, 0.05, 2.0);
-      emissiveTris.insert(emissiveTris.end(), notSeen.begin(), notSeen.end());
       // vector<CpuEmissiveTriangle> emissiveTris;
       // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
 
