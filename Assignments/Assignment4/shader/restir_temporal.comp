@@ -86,7 +86,12 @@ void main()
     combine_reservoirs(s, reservoir_prev, gBufferInfo, rng);
     s.sample_count = reservoir_curr.sample_count + reservoir_prev.sample_count;
     vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
-    s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count) * float(s.weight_sum));
+
+    if (length(contrib) < 1e-6 || s.sample_count == 0) {
+        s.W = 0.0;
+    } else {
+        s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count)) * float(s.weight_sum);
+    }
 
 /*
     if(reprojected_successful) {
