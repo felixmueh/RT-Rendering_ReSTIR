@@ -72,12 +72,12 @@ void main()
 
     // load the reservoir from previous frame
     // TODO: use reprojected index
-    Reservoir reservoir_prev = reservoirIn[idx];
+    Reservoir reservoir_prev = reservoirIn[reprojected_idx];
 
     Reservoir reservoir_curr = reservoirOut[idx];
 
     // Clamp M to reducre temporal influence
-    reservoir_prev.sample_count = max(reservoir_prev.sample_count, 20 * reservoir_curr.sample_count);
+    reservoir_prev.sample_count = min(reservoir_prev.sample_count, 20 * reservoir_curr.sample_count);
 
     // combine the reservoirs and write the result to reservoirOut
     // combine reservoir_pre and reservoir_curr
