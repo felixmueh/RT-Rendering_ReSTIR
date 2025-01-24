@@ -53,17 +53,16 @@ In case some of these prove to be significantly more challenging than others we 
 - Dominik Wüst
 
 # TODOs
-- Buffer management
-    - Resize (monotone) buffer when resizing window
-    - Reset buffer when resizing window
-    - Initialze buffers with 0 (reset uniform)
+- Compare results (to plain Light Sampling, StreamingRIS, PathGuiding?)
+- Analyze performance (again to other techniques)
+- Render nice images on different scenes for presentation
 - How do we calculate multiple (n_sample=4) samples -> we need to store multiple reservoirs per pixel!
-- Spacial / temporal datastructures
-    - Clamp previous frames M to at most 20x current frames M
-    - -> bounds influence of temporal information
-- Spacial / temporal reuse
-    - Compute motion vectors for temporal reuse
 - Performance light selection (binary search or better)
     - (Alias Table Walker 1974)
-- Include light power during sampling (cdf calculation) (if we have lights with different power)
+- Include light power during sampling (cdf calculation) (if we have lights with different power) or uniform selection by index (faster)
 - Generate candidates (25%) using importance sampling on the envmap
+
+# Nice to have's
+- Rasterize light sources (maybe add the triangles to the scene manually?)
+- Specular BSDF?
+- combine with path tracing for GI?
