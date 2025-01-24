@@ -74,7 +74,6 @@ void main()
     // TODO: use reprojected index
     Reservoir reservoir_prev = reservoirIn[idx];
 
-    reservoirOut[idx + width * height] = reservoir_prev;
     Reservoir reservoir_curr = reservoirOut[idx];
 
     // Clamp M to reducre temporal influence
