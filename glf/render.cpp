@@ -288,7 +288,7 @@ int mainProtoGLF( int argc, char **argv )
 
 
 
-void CRenderBase::scenePostProcess()
+void CRenderBase::scenePostProcess(FramebufferObject *targetFBO)
 {
 	glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
@@ -427,8 +427,12 @@ void CRenderBase::scenePostProcess()
 				glDisable( GL_BLEND );
 				
 				glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
-				glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
-				glDrawBuffer( GL_BACK );                       // Set the back buffer as the draw buffer
+				if (targetFBO) {
+					glBindFramebuffer( GL_DRAW_FRAMEBUFFER, targetFBO->getID() );
+				} else {
+					glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
+					glDrawBuffer( GL_BACK );                       // Set the back buffer as the draw buffer
+				}	
 
 				glBindMultiTextureEXT( GL_TEXTURE0_ARB, GL_TEXTURE_2D, fboAccumulation->getTexture( 0 ) );
 
@@ -445,7 +449,11 @@ void CRenderBase::scenePostProcess()
 			} else
 			{
 				glDisable( GL_BLEND );
-				glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );   // Make sure no FBO is set as the draw framebuffer
+				if (targetFBO) {
+					glBindFramebuffer( GL_DRAW_FRAMEBUFFER, targetFBO->getID() );
+				} else {
+					glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );   // Make sure no FBO is set as the draw framebuffer
+				}
 				glBindFramebuffer( GL_READ_FRAMEBUFFER, fboPostProcess->getFBO()->getID() ); // Make sure your multisampled FBO is the read framebuffer
 				glBlitFramebuffer( 0, 0, width, height, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_LINEAR );
 				glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );

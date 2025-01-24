@@ -204,6 +204,32 @@ IMWrap *createWrapper(GLSLProgram &prg) {
   return wrapper;
 }
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+void savePNG(std::string out_file, FramebufferObject *fbo, uint width, uint height) {
+    unsigned char *pixels = new unsigned char[width * height * 3];
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo->getID());
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Flip image vertically (OpenGL's origin is bottom-left)
+    unsigned char *flippedPixels = new unsigned char[width * height * 3];
+    for (int y = 0; y < height; y++) {
+        memcpy(flippedPixels + (height - 1 - y) * width * 3, pixels + y * width * 3, width * 3);
+    }
+
+    stbi_write_png(out_file.c_str(), width, height, 3, flippedPixels, width * 3);
+    delete[] pixels;
+    delete[] flippedPixels;
+}
+
+static std::vector<int> frames_to_capture = {1, 2, 10, 50};
+
+bool shouldCaptureFrame(int frame) {
+    return std::find(frames_to_capture.begin(), frames_to_capture.end(), frame) != frames_to_capture.end();
+}
+
 class CRender : public CRenderBase {
 protected:
   Scene *scene;  // scene for loading .obj and computing a BVH
@@ -239,6 +265,9 @@ protected:
   uint n_samples_allocated;
 
   mat4x4 old_matVP;
+
+  FramebufferObject captureFBO;
+  OGLTexture *captureAttachment;
 
 public:
   CRender() {
@@ -456,6 +485,13 @@ public:
 
     // validate the fbo after attaching textures and render buffers
     pDeferredFBO.IsValid();
+
+
+    captureFBO.Bind();
+    texMan->CreateTexture(&captureAttachment, w, h, GL_RGB, "capture");
+    captureFBO.AttachTexture(GL_TEXTURE_2D, captureAttachment->getID(),
+                             GL_COLOR_ATTACHMENT0);
+    captureFBO.IsValid();
 
     // disable fbo rendering for now
     FramebufferObject::Disable();
@@ -1059,7 +1095,14 @@ public:
     if (offScreenRenderTarget)
       CRenderBase::finishOffScreenRendering();
 
-    scenePostProcess();
+    if (shouldCaptureFrame(frame)) {
+        scenePostProcess(&captureFBO);
+        std::string out_file = "screenshot-" + std::to_string(frame) + ".png";
+        savePNG(out_file, &captureFBO, w, h);
+    } else {
+        scenePostProcess();
+    }
+    
 
     mat4 matM;
 	camera.computeMatrices(&trackball, matM, 0);
