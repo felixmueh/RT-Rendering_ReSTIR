@@ -176,7 +176,7 @@ void main(void)
 {
     // TODO: initialze last frame's reservoir buffer to 0 in the first frame?
     Rng rng;
-    uint FragIdx = uint(gl_FragCoord.x + gl_FragCoord.y * width);
+    uint FragIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     rngInit(rng, uint64_t(frameIdx), uint64_t(FragIdx));
 
     out_pos = vec4(P, 1.0f);
