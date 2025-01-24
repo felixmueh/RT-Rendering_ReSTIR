@@ -10,9 +10,11 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 uniform int width;
 uniform int height;
+uniform int frameIdx;
 
 uniform int num_spatial_samples;
-uniform int frameIdx;
+uniform int neighbor_distance;
+uniform float threshold_albedo, threshold_normal, threshold_position;
 
 void main()
 {
@@ -41,7 +43,7 @@ void main()
     int sample_count_sum = reservoir.sample_count;
     for(int i = 0; i<num_spatial_samples; i++) {
         vec2 offset = rngRndVec2(rng) * 2 - vec2(1);
-        offset *= 30;
+        offset *= neighbor_distance;
         ivec2 neighbor = pixel + ivec2(offset);
 
         if(neighbor.x >= width || neighbor.y >= height || neighbor.x < 0 || neighbor.y < 0) {
@@ -55,7 +57,7 @@ void main()
             continue; // nothing to resample from
         }
 
-        if(!validate_reuse(gBufferInfo, neighborGBufferInfo, 25.0, 0.1, 0.1)) {
+        if(!validate_reuse(gBufferInfo, neighborGBufferInfo, threshold_normal, threshold_albedo, threshold_position)) {
             continue;
         }
 

@@ -61,11 +61,19 @@ struct RenderSettings {
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
   int n_samples = 2;
-  int last_frame_contribution_weight = 20;
-  int n_spatial_reuse_samples = 5;
 };
 
 RenderSettings renderSettings;
+
+struct ReSTIRSettings {
+  int last_frame_contribution_weight = 20;  // weighting of accumulated previous samples -> higher value increases temporal stability but might cause ghosting
+  int n_spatial_reuse_samples = 5;          // number of neighbouring reservoirs to reuse
+  int neighbor_distance = 30;               // size of the neighborhood square
+  float threshold_albedo = 0.1;             // albedo difference threshold for reuse (default: 10%)
+  float threshold_normal = 25.0;            // normal difference threshold in degree (default: 25 degree)
+  float threshold_position = 0.1;           // relative position difference threshold (default: 10%)
+};
+ReSTIRSettings restirSettings;
 
 static void CheckGLError(int idx = 0) {
   int err = 0;
@@ -147,11 +155,26 @@ void initializeTweakBar() {
   TwAddVarRW(bar, "Samples", TW_TYPE_INT32, &renderSettings.n_samples,
              " label='Samples' min=1 max=100 step=1 group='RIS' ");
 
-  TwAddVarRW(bar, "LastFrameContributionWeight", TW_TYPE_INT32, &renderSettings.last_frame_contribution_weight,
+  TwAddVarRW(bar, "LastFrameContributionWeight", TW_TYPE_INT32, &restirSettings.last_frame_contribution_weight,
               " label='Last Frame Contribution Weight' min=0 max=100 step=1 group='ReSTIR' ");
 
-  TwAddVarRW(bar, "NSpatialReuseSamples", TW_TYPE_INT32, &renderSettings.n_spatial_reuse_samples,
+  TwAddVarRW(bar, "NSpatialReuseSamples", TW_TYPE_INT32, &restirSettings.n_spatial_reuse_samples,
               " label='Spatial Reuse Samples' min=0 max=10 step=1 group='ReSTIR' ");
+
+  TwAddVarRW(bar, "NeighborhoodSize", TW_TYPE_INT32, &restirSettings.neighbor_distance,
+              " label='Neighborhood Size' min=5 max=50 step=1 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdAlbedo", TW_TYPE_FLOAT, &restirSettings.threshold_albedo,
+      " label='Threshold Albedo' min=0.01 max=1.0 step=0.1 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdPosition", TW_TYPE_FLOAT, &restirSettings.threshold_position,
+      " label='Threshold Position' min=0.01 max=1.0 step=0.01 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdNormal", TW_TYPE_FLOAT, &restirSettings.threshold_normal,
+      " label='Threshold Normal' min=0.0 max=360.0 step=1.0 group='ReSTIR' ");
 
 }
 #endif
@@ -837,7 +860,10 @@ public:
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
     prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
-    prgReSTIRTemporal.Uniform1i((char const *)"last_frame_contribution_weight", renderSettings.last_frame_contribution_weight);
+    prgReSTIRTemporal.Uniform1i((char const *)"last_frame_contribution_weight", restirSettings.last_frame_contribution_weight);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
 
     glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
 
@@ -858,7 +884,12 @@ public:
       prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
       prgReSTIRSpatial.Uniform1i((char const *)"height", h);
 
-      prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", renderSettings.n_spatial_reuse_samples);
+      prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", restirSettings.n_spatial_reuse_samples);
+      prgReSTIRSpatial.Uniform1i((char const *)"neighbor_distance", restirSettings.neighbor_distance);
+      prgReSTIRSpatial.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
+      prgReSTIRSpatial.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
+      prgReSTIRSpatial.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
+
       prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
 
       glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);

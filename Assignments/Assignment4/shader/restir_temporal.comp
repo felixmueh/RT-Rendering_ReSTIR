@@ -14,6 +14,7 @@ uniform int height;
 uniform int frameIdx;
 
 uniform int last_frame_contribution_weight;
+uniform float threshold_albedo, threshold_normal, threshold_position;
 
 // previous frame view-projection matrix
 uniform mat4 matVP_old;
@@ -71,7 +72,7 @@ void main()
         return; // nothing to resample from the previous frame
     }
 
-    if(!validate_reuse(gBufferInfo, gBufferInfo_prev, 25.0, 0.1, 0.1)) {
+    if(!validate_reuse(gBufferInfo, gBufferInfo_prev, threshold_normal, threshold_albedo, threshold_position)) {
         return; // nothing to resample from the previous frame
     };
 
