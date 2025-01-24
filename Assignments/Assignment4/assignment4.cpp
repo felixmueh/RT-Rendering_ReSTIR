@@ -61,6 +61,7 @@ struct RenderSettings {
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
   int n_samples = 2;
+  int last_frame_contribution_weight = 20;
 };
 
 RenderSettings renderSettings;
@@ -145,6 +146,9 @@ void initializeTweakBar() {
   TwAddVarRW(bar, "Samples", TW_TYPE_INT32, &renderSettings.n_samples,
              " label='Samples' min=1 max=100 step=1 group='RIS' ");
 
+  TwAddVarRW(bar, "LastFrameContributionWeight", TW_TYPE_INT32, &renderSettings.last_frame_contribution_weight,
+              " label='Last Frame Contribution Weight' min=0 max=100 step=1 group='ReSTIR' ");
+
 
 }
 #endif
@@ -201,7 +205,9 @@ protected:
   GLuint reservoirBufferA;
   GLuint reservoirBufferB;
 
-  GLuint gBuffer;
+  GLuint gBufferCurrent;
+  GLuint gBufferLastFrame;
+
   mat4x4 old_matVP;
 
 public:
@@ -245,7 +251,8 @@ public:
 
     int intGbufferStructSize = getGPUStructSize(program, "bGBuffer");
 
-    createBuffer(gBuffer, intGbufferStructSize, width, height);
+    createBuffer(gBufferCurrent, intGbufferStructSize, width, height);
+    createBuffer(gBufferLastFrame, intGbufferStructSize, width, height);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -267,7 +274,8 @@ public:
 
     deleteBuffer(reservoirBufferA);
     deleteBuffer(reservoirBufferB);
-    deleteBuffer(gBuffer);
+    deleteBuffer(gBufferCurrent);
+    deleteBuffer(gBufferLastFrame);
 
     TwTerminate();
   }
@@ -799,7 +807,7 @@ public:
     // write to A
     // reservoirBufferB contains the result of the previous frame
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
     // render objects
     scene->draw(&prgRender, RENDER_MATERIALS);
     CheckGLError();
@@ -823,13 +831,15 @@ public:
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
 
     BINDOGLTEX(prgReSTIRTemporal, "tPosition", tGPosition, GL_TEXTURE1);
 
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
     prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
+    prgReSTIRTemporal.Uniform1i((char const *)"last_frame_contribution_weight", renderSettings.last_frame_contribution_weight);
 
     glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
 
@@ -845,7 +855,7 @@ public:
 
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
 
       prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
       prgReSTIRSpatial.Uniform1i((char const *)"height", h);
@@ -869,7 +879,7 @@ public:
     prgReSTIRFinal.bind();
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
     CheckGLError(-1);
     prgReSTIRFinal.Uniform1i((char const *)"width", w);
     CheckGLError(-2);
@@ -885,6 +895,8 @@ public:
     GLenum buffersCam[] = {(GLenum)camRenderTarget};
     glDrawBuffers(1, buffersCam);
     CheckGLError();
+
+    std::swap(gBufferCurrent, gBufferLastFrame);
   }
 
   //

@@ -86,6 +86,10 @@ layout(std430, binding = GBUFFER_BINDING) buffer bGBuffer {
     GBufferInfo gBuffer[];
 };
 
+layout(std430, binding = GBUFFER_LAST_FRAME_BINDING) buffer bGBufferLastFrame {
+    GBufferInfo gBufferLastFrame[];
+};
+
 uniform float totalArea;
 uniform int nEmissiveTriangles;
 
