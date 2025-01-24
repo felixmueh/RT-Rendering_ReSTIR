@@ -89,9 +89,14 @@ layout (std430, binding = 6) buffer bEmissiveTriangles
   GpuEmissiveTriangle emissiveTriangles[];
 };
 
-layout (std430, binding = 7) buffer bEmissiveCDF
-{ 
-  float emissiveCDF[];
+layout(std430, binding = ALIAS_PROB_BINDING) buffer bAliasProb
+{
+    float emissiveAliasPdf[];  // scaled probabilities in [0,1]
+};
+
+layout(std430, binding = ALIAS_IDX_BINDING) buffer bAliasIndex
+{
+    uint emissiveAliasIdx[];
 };
 
 layout(std430, binding = RESERVOIR_BUFFER_IN_BINDING) buffer bReservoirIn {
@@ -148,11 +153,13 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
 }
 
 uint sampleTriangle(float rnd) {
-  uint i = 0;
-  while(emissiveCDF[i] < rnd) {
-    i++;
-  }
-  return i;
+    // Convert rnd in [0,1] to an integer in [0, nEmissiveTriangles-1]
+    float scaled = rnd * float(nEmissiveTriangles);
+    uint i = uint(floor(scaled));
+    float r = fract(scaled);
+
+    // If the fraction is below the pdf threshold, pick i, else alias
+    return (r < emissiveAliasPdf[i]) ? i : emissiveAliasIdx[i];
 }
 
 void sampleLight(vec3 rnd, out vec3 emission, out vec3 pos, out float pdf) {

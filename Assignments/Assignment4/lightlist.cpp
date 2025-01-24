@@ -13,32 +13,81 @@ float CpuEmissiveTriangle::computeArea() const
 	return 0.5 * length(cross(p2-p1, p3-p1));
 }
 
-LightList::LightList() : totalArea(0.0f), csCdf(0), csTriangles(0) { }
+LightList::LightList() : totalArea(0.0f), csCdf(0), csTriangles(0), csAliasProb(0), csAliasIndex(0) { }
 
 void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
 {
     triangles.clear();
     triangles = _triangles;
 
-    totalArea = 0.0f;
-    cdf.clear();
-    cdf.reserve(triangles.size());
-
     // Compute total area
+    totalArea = 0.0f;
     for (const auto& tri : triangles) {
         totalArea += tri.computeArea();
     }
 
-    // Compute CDF
-    float cumulativeSum = 0.0f;
-    for (const auto& tri : triangles) {
-        cumulativeSum += tri.computeArea();
-        cdf.push_back(cumulativeSum / totalArea); // Normalize by total area
+    // Prepare local arrays for building alias table
+    size_t N = triangles.size();
+    std::vector<float> p(N);
+    for (size_t i = 0; i < N; i++) {
+        p[i] = triangles[i].computeArea() / totalArea;
     }
-    std::cout << cdf.back();
-    assert(cdf.back() >= (1.0 - 1e-10));
-    assert(cdf.back() <= (1.0 + 1e-10));
-    cdf.back() = 1.0f;
+
+    aliasProb.clear();
+    aliasIndex.clear();
+
+    aliasProb.resize(N);
+    aliasIndex.resize(N);
+
+    // Temporary stacks
+    std::vector<size_t> small, large;
+    small.reserve(N);
+    large.reserve(N);
+
+    // Scale probabilities by N
+    for (size_t i = 0; i < N; i++) {
+        aliasProb[i] = p[i] * float(N);
+        if (aliasProb[i] < 1.f)
+            small.push_back(i);
+        else
+            large.push_back(i);
+    }
+
+    // Walker's method
+    while (!small.empty() && !large.empty()) {
+        auto s = small.back();
+        small.pop_back();
+        auto l = large.back();
+        large.pop_back();
+        aliasIndex[s] = uint32_t(l);
+        aliasProb[l] = (aliasProb[l] + aliasProb[s]) - 1.f;
+        if (aliasProb[l] < 1.f)
+            small.push_back(l);
+        else
+            large.push_back(l);
+    }
+
+    // Anything remaining is either all small or all large
+    while (!large.empty()) {
+        auto l = large.back();
+        large.pop_back();
+        aliasProb[l] = 1.f;
+        aliasIndex[l] = uint32_t(l);
+    }
+
+    while (!small.empty()) {
+        auto s = small.back();
+        small.pop_back();
+        aliasProb[s] = 1.f;
+        aliasIndex[s] = uint32_t(s);
+    }
+
+    // validate alias table
+    float sum = 0.0f;
+    for (size_t i = 0; i < N; i++) {
+        sum += aliasProb[i];
+    }
+    assert(fabs(sum - N) < 1e-6);
 }
 
 void LightList::uploadLightList2GPU()
@@ -54,10 +103,19 @@ void LightList::uploadLightList2GPU()
     csTriangles = createShaderStorageBuffer(sizeof(GpuEmissiveTriangle) * gpuTriangles.size());
     copyMem2StorageBuffer(csTriangles, gpuTriangles.data(), sizeof(GpuEmissiveTriangle) * gpuTriangles.size());
 
-    // upload cdf for sampling
-    csCdf = createShaderStorageBuffer(sizeof(float) * cdf.size());
-    copyMem2StorageBuffer(csCdf, cdf.data(),
-        sizeof(float) * cdf.size());
+    //Upload alias table
+    csAliasProb = createShaderStorageBuffer(sizeof(float) * aliasProb.size());
+    copyMem2StorageBuffer(csAliasProb,
+        aliasProb.data(),
+        sizeof(float) * aliasProb.size()
+    );
+
+    // 3) Upload aliasIndex
+    csAliasIndex = createShaderStorageBuffer(sizeof(uint32_t) * aliasIndex.size());
+    copyMem2StorageBuffer(csAliasIndex,
+        aliasIndex.data(),
+        sizeof(uint32_t) * aliasIndex.size()
+    );
 }
 
 void LightList::setLightListShaderUniforms(GLSLProgram* prg)
@@ -74,10 +132,15 @@ void LightList::setLightListShaderUniforms(GLSLProgram* prg)
     glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csTriangles);
 
-    block_index = glGetProgramResourceIndex(prg->getProgramObject(), GL_SHADER_STORAGE_BLOCK, "bEmissiveCDF");
-    binding_point_index = 7;
+    block_index = glGetProgramResourceIndex(prg->getProgramObject(), GL_SHADER_STORAGE_BLOCK, "bAliasProb");
+    binding_point_index = ALIAS_PROB_BINDING;
     glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csCdf);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csAliasProb);
+
+    block_index = glGetProgramResourceIndex(prg->getProgramObject(), GL_SHADER_STORAGE_BLOCK, "bAliasIndex");
+    binding_point_index = ALIAS_IDX_BINDING;
+    glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csAliasIndex);
 }
 
 GLuint LightList::createShaderStorageBuffer(int size, GLenum usage)

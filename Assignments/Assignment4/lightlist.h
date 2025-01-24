@@ -35,10 +35,14 @@ private:
 	
 private:
 	vector<CpuEmissiveTriangle> triangles;	// list of emissive triangles
-	vector<float> cdf;						// cumulative areas (normalized) for discrete sampling
+	vector<float> aliasProb;				// alias probabilities for discrete sampling
+	vector<float> aliasIndex;				// alias indices for discrete sampling
 	float totalArea;						// total area of the triangles
 	GLuint csTriangles;						// gpu memory of traingles
 	GLuint csCdf;							// gpu memory of cumulative areas
+	GLuint csAliasProb;						// gpu memory of alias probabilities
+	GLuint csAliasIndex;					// gpu memory of alias indices
+
 };
 
 #endif // LIGHTLIST_H
