@@ -182,19 +182,19 @@ void main(void)
     // TODO: implement multiple samples for restir (N=4?)
     // This requires a reservoir buffer for every sample
     if (sample_mode == SAMPLE_MODE_RESTIR) {
-        Reservoir r = streamingRis(rng);
+        for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+            Reservoir r = streamingRis(rng);
 
-        vec3 pos = r.out_sample;
-        vec3 PL = pos-P;
-        vec3 dir = normalize(PL);
-        float dist = length(PL);
-        Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
-        if ( traceRay( ray ) ) {
-            r.W = 0.0;
+            vec3 pos = r.out_sample;
+            vec3 PL = pos-P;
+            vec3 dir = normalize(PL);
+            float dist = length(PL);
+            Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
+            if ( traceRay( ray ) ) {
+                r.W = 0.0;
+            }
+            reservoirOut[FragIdx + width * height * i] = r;
         }
-        reservoirOut[FragIdx] = r;
-        out_color.xyz = vec3(0.1, 0.0, 0.0); // Dark red
-
         GBufferInfo gBufferInfo;
         gBufferInfo.normal = N;
         gBufferInfo.position = P;

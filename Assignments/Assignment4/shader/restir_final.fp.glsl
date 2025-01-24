@@ -20,11 +20,16 @@ uniform int frameIdx;
 void main()
 {
     uint FragIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
-    Reservoir r = reservoirIn[FragIdx];
     GBufferInfo gBufferInfo = gBuffer[FragIdx];
-    vec3 contrib = directLight(
-        gBufferInfo.position, r.out_sample, r.emission, gBufferInfo.normal, gBufferInfo.albedo
-    );
 
-    out_color.xyz = contrib * r.W;
+    vec3 color = vec3(0.0);
+    for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+        Reservoir r = reservoirIn[FragIdx + i * width * height];
+        vec3 contrib = directLight(
+            gBufferInfo.position, r.out_sample, r.emission, gBufferInfo.normal, gBufferInfo.albedo
+        );
+        color += contrib * r.W;
+    }
+
+    out_color.xyz = color / float(N_SAMPLES_ReSTIR);
 }

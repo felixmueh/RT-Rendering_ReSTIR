@@ -228,6 +228,7 @@ protected:
 
   LightList lights;
   int reservoirStructSize;
+  int reservoirPerSampleSize;
   GLuint reservoirBufferA;
   GLuint reservoirBufferB;
 
@@ -266,14 +267,11 @@ public:
 
     GLuint program = prgRender.getProgramObject();
     reservoirStructSize = getGPUStructSize(program, "bReservoirIn");
+    reservoirPerSampleSize = reservoirStructSize * width * height;
 
-    // NOTE: wrong size when resizing
-    // TODO: resize buffer when resizing window
-    reservoirStructSize *= 2; // TODO: Remove, used for debugging only
-    
     // Create two buffers by calling the function twice
-    createBuffer(reservoirBufferA, reservoirStructSize, width, height);
-    createBuffer(reservoirBufferB, reservoirStructSize, width, height);
+    createBuffer(reservoirBufferA, reservoirStructSize * N_SAMPLES_ReSTIR, width, height);
+    createBuffer(reservoirBufferB, reservoirStructSize * N_SAMPLES_ReSTIR, width, height);
 
     int intGbufferStructSize = getGPUStructSize(program, "bGBuffer");
 
@@ -851,12 +849,6 @@ public:
 
     prgReSTIRTemporal.bind();
     prgReSTIRTemporal.Uniform1i((char const *)"frameIdx", frame);
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
-
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
     prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
@@ -864,37 +856,46 @@ public:
     prgReSTIRTemporal.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
     prgReSTIRTemporal.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
     prgReSTIRTemporal.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
 
-    glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+    for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
+
+      glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+    }
+
 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
     // ====================================
     // Spatial Pass
     // ====================================
+    prgReSTIRSpatial.bind();
+    prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
+    prgReSTIRSpatial.Uniform1i((char const *)"height", h);
 
-    for (int i = 0; i < N_ITERATIONS_SPATIAL; i++) {
-      prgReSTIRSpatial.bind();
-      prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", restirSettings.n_spatial_reuse_samples);
+    prgReSTIRSpatial.Uniform1i((char const *)"neighbor_distance", restirSettings.neighbor_distance);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
 
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB);
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
 
-      prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
-      prgReSTIRSpatial.Uniform1i((char const *)"height", h);
+    for (int _j = 0; _j < N_ITERATIONS_SPATIAL; _j++) {
+      for (int i = 0; i < N_SAMPLES_ReSTIR; i++) {
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
+        glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
+      }
 
-      prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", restirSettings.n_spatial_reuse_samples);
-      prgReSTIRSpatial.Uniform1i((char const *)"neighbor_distance", restirSettings.neighbor_distance);
-      prgReSTIRSpatial.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
-      prgReSTIRSpatial.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
-      prgReSTIRSpatial.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
-
-      prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
-
-      glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
       std::swap(reservoirBufferA, reservoirBufferB);
+
     }
     std::swap(reservoirBufferA, reservoirBufferB);
 
