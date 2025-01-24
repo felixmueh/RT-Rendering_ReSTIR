@@ -196,10 +196,12 @@ protected:
   FramebufferObject pDeferredFBO;
   Renderbuffer pDeferredRenderBuffer;
 
-	LightList lights;
+  LightList lights;
   int reservoirStructSize;
   GLuint reservoirBufferA;
   GLuint reservoirBufferB;
+
+  mat4x4 old_matVP;
 
 public:
   CRender() {
@@ -236,8 +238,8 @@ public:
 
     // NOTE: wrong size when resizing
     // TODO: resize buffer when resizing window
-    //reservoirStructSize *= 2;
-
+    reservoirStructSize *= 2; // TODO: Remove, used for debugging only
+    
     // Create two buffers by calling the function twice
     createReservoirBuffer(reservoirBufferA, reservoirStructSize, width, height);
     createReservoirBuffer(reservoirBufferB, reservoirStructSize, width, height);
@@ -451,6 +453,7 @@ public:
 
       mat4 matM;
       camera.computeMatrices(&trackball, matM, 0);
+      old_matVP = camera.matVP;
 
       lights.uploadLightList2GPU();
       lights.setLightListShaderUniforms(&prgRender);
@@ -807,8 +810,11 @@ public:
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
 
+    BINDOGLTEX(prgReSTIRTemporal, "tPosition", tGPosition, GL_TEXTURE1);
+
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
+    prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
 
     glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
 
@@ -972,6 +978,10 @@ public:
       CRenderBase::finishOffScreenRendering();
 
     scenePostProcess();
+
+    mat4 matM;
+	camera.computeMatrices(&trackball, matM, 0);
+	old_matVP = camera.matVP; // save the matrix for next frame!
   }
 };
 
