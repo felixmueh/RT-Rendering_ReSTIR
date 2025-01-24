@@ -62,6 +62,7 @@ struct RenderSettings {
   float accumulationEWA = 1.0f;
   int n_samples = 2;
   int last_frame_contribution_weight = 20;
+  int n_spatial_reuse_samples = 5;
 };
 
 RenderSettings renderSettings;
@@ -149,6 +150,8 @@ void initializeTweakBar() {
   TwAddVarRW(bar, "LastFrameContributionWeight", TW_TYPE_INT32, &renderSettings.last_frame_contribution_weight,
               " label='Last Frame Contribution Weight' min=0 max=100 step=1 group='ReSTIR' ");
 
+  TwAddVarRW(bar, "NSpatialReuseSamples", TW_TYPE_INT32, &renderSettings.n_spatial_reuse_samples,
+              " label='Spatial Reuse Samples' min=0 max=10 step=1 group='ReSTIR' ");
 
 }
 #endif
@@ -857,6 +860,9 @@ public:
 
       prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
       prgReSTIRSpatial.Uniform1i((char const *)"height", h);
+
+      prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", renderSettings.n_spatial_reuse_samples);
+      prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
 
       glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
       glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);

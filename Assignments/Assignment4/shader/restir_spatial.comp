@@ -6,9 +6,13 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 #include "common.h.glsl"
 #include "lightlist.h.glsl"
+#include "rng.h.glsl"
 
 uniform int width;
 uniform int height;
+
+uniform int num_spatial_samples;
+uniform int frameIdx;
 
 void main()
 {
@@ -21,7 +25,57 @@ void main()
 
     int idx = pixel.y * width + pixel.x;
 
-    // Read from reservoirIn write to reservoirOut
+    Rng rng;
+    rngInit(rng, uint64_t(frameIdx), uint64_t(idx));
 
-    reservoirOut[idx] = reservoirIn[idx];
+    GBufferInfo gBufferInfo = gBuffer[idx];
+    Reservoir reservoir = reservoirIn[idx];
+
+    if(gBufferInfo.frame != frameIdx) {
+        return; // nothing to resample from the first frame
+    }
+    
+    Reservoir s = new_reservoir();
+    combine_reservoirs(s, reservoir, gBufferInfo, rng);
+
+    int sample_count_sum = reservoir.sample_count;
+    for(int i = 0; i<num_spatial_samples; i++) {
+        vec2 offset = rngRndVec2(rng) * 2 - vec2(1);
+        offset *= 30;
+        ivec2 neighbor = pixel + ivec2(offset);
+
+        if(neighbor.x >= width || neighbor.y >= height || neighbor.x < 0 || neighbor.y < 0) {
+            continue;
+        }
+        
+        int neighborIdx = neighbor.y * width + neighbor.x;
+        GBufferInfo neighborGBufferInfo = gBuffer[neighborIdx];
+
+        if(neighborGBufferInfo.frame != frameIdx) {
+            continue; // nothing to resample from
+        }
+
+        if(!validate_reuse(gBufferInfo, neighborGBufferInfo, 25.0, 0.1, 0.1)) {
+            continue;
+        }
+
+        Reservoir neighborReservoir = reservoirIn[neighborIdx];
+
+        combine_reservoirs(s, neighborReservoir, gBufferInfo, rng);
+
+        sample_count_sum += neighborReservoir.sample_count;
+    }
+
+    s.sample_count = sample_count_sum;
+
+    vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
+
+    if (length(contrib) < 1e-6 || s.sample_count == 0) {
+        s.W = 0.0;
+    } else {
+        s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count)) * float(s.weight_sum);
+    }
+    
+
+    reservoirOut[idx] = s;
 }
