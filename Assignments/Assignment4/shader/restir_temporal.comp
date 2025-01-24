@@ -7,9 +7,11 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 #include "common.h.glsl"
 #include "lightlist.h.glsl"
+#include "rng.h.glsl"
 
 uniform int width;
 uniform int height;
+uniform int frameIdx;
 
 // previous frame view-projection matrix
 uniform mat4 matVP_old;
@@ -21,6 +23,7 @@ uniform sampler2D   tPosition;
 void main()
 {
     ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    Rng rng;
 
     // If out of range, return
     if (pixel.x >= width || pixel.y >= height) {
@@ -31,6 +34,8 @@ void main()
     // note that we want to sample the texture at the center of the pixel, so we add 0.5 
     vec2 texcoord = (vec2(pixel) + vec2(0.5, 0.5)) / vec2(width, height);
     int idx = pixel.y * width + pixel.x;
+
+    rngInit(rng, uint64_t(frameIdx), uint64_t(idx));
 
     // Read from tPosition
     vec4 world_pos = textureLod(tPosition, texcoord, 0.0);
@@ -63,14 +68,26 @@ void main()
     ivec2 reprojected_pixel = ivec2(reprojected_texcoord * vec2(width, height));
     int reprojected_idx = reprojected_pixel.y * width + reprojected_pixel.x;
 
+    GBufferInfo gBufferInfo = gBuffer[idx];
+
     // load the reservoir from previous frame
-    Reservoir reservoir_prev = reservoirIn[reprojected_idx];
+    // TODO: use reprojected index
+    Reservoir reservoir_prev = reservoirIn[idx];
 
     reservoirOut[idx + width * height] = reservoir_prev;
     Reservoir reservoir_curr = reservoirOut[idx];
 
+    // Clamp M to reducre temporal influence
+    reservoir_prev.sample_count = max(reservoir_prev.sample_count, 20 * reservoir_curr.sample_count);
+
     // combine the reservoirs and write the result to reservoirOut
-    Reservoir combined_reservoir = reservoir_curr;
+    // combine reservoir_pre and reservoir_curr
+    Reservoir s = new_reservoir();
+    combine_reservoirs(s, reservoir_curr, gBufferInfo, rng);
+    combine_reservoirs(s, reservoir_prev, gBufferInfo, rng);
+    s.sample_count = reservoir_curr.sample_count + reservoir_prev.sample_count;
+    vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
+    s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count) * float(s.weight_sum));
 
 /*
     if(reprojected_successful) {
@@ -85,5 +102,5 @@ void main()
     // reservoirOut contains information about the current frame
     // reservoirIn contains information about the previous frame
     // Write to reservoirOut, read from both
-    reservoirOut[idx] = combined_reservoir;
+    reservoirOut[idx] = s;
 }

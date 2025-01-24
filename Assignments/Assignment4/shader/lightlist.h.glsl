@@ -46,6 +46,23 @@ void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float we
     }
 }
 
+// Reservoir s;
+// for (auto r : reservoirs) {
+//     combine_reservoirs(s, r, gBuffer);
+// }
+// s.M =
+// s.W =
+// return s;
+
+void combine_reservoirs(inout Reservoir s, Reservoir r, GBufferInfo g, inout Rng rng) {
+    update_reservoir(
+        s, r.out_sample, r.emission, length(directLight(
+            g.position, r.out_sample, r.emission, g.normal, g.albedo
+        ) * r.W * r.sample_count),
+        rng
+    );
+}
+
 layout (std430, binding = 6) buffer bEmissiveTriangles
 { 
   GpuEmissiveTriangle emissiveTriangles[];

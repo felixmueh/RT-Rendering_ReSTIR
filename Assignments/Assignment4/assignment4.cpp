@@ -819,6 +819,7 @@ public:
     // ====================================
 
     prgReSTIRTemporal.bind();
+    prgReSTIRTemporal.Uniform1i((char const *)"frameIdx", frame);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
@@ -840,6 +841,7 @@ public:
 
     for (int i = 0; i < N_ITERATIONS_SPATIAL; i++) {
       prgReSTIRSpatial.bind();
+      prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
 
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA);
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB);
