@@ -9,7 +9,6 @@ struct Reservoir {
     vec3 emission;
     float weight_sum;
     float W;
-    vec3 f;
     int sample_count;
 };
 
@@ -55,10 +54,12 @@ void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float we
 // return s;
 
 void combine_reservoirs(inout Reservoir s, Reservoir r, GBufferInfo g, inout Rng rng) {
-    update_reservoir(
-        s, r.out_sample, r.emission, length(directLight(
+    // recalculate the approximate rendering equation for the current frame
+    vec3 contrib = directLight(
             g.position, r.out_sample, r.emission, g.normal, g.albedo
-        ) * r.W * r.sample_count),
+        );
+    update_reservoir(
+        s, r.out_sample, r.emission, length(contrib) * r.W * r.sample_count,
         rng
     );
 }

@@ -19,6 +19,10 @@ void main()
 {
     uint FragIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     Reservoir r = reservoirIn[FragIdx];
+    GBufferInfo gBufferInfo = gBuffer[FragIdx];
+    vec3 contrib = directLight(
+        gBufferInfo.position, r.out_sample, r.emission, gBufferInfo.normal, gBufferInfo.albedo
+    );
 
-    out_color.xyz = r.f * r.W;
+    out_color.xyz = contrib * r.W;
 }

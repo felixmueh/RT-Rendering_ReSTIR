@@ -154,8 +154,8 @@ Reservoir streamingRis(inout Rng rng) {
     vec3 PL = pos-P;
     vec3 dir = normalize(PL);
     float dist = length(PL);
-    r.f = directLightPerpixel(P, pos, r.emission, 1.0);
-    float p = length(r.f);
+    vec3 contrib = directLightPerpixel(P, pos, r.emission, 1.0);
+    float p = length(contrib);
     if (length(p) < 1e-6) {
         // NOTE: multiply with 0 later so does not matter.
         r.W = 0.0;
@@ -247,7 +247,8 @@ void main(void)
             Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
             if ( !traceRay( ray ) ) {
-                color += r.f * r.W;
+                vec3 contrib = directLightPerpixel(P, pos, r.emission, 1.0);
+                color += contrib * r.W;
             }
         } else {
            out_color.xyz = vec3(1.0f, 1.0f, 0.0f);
