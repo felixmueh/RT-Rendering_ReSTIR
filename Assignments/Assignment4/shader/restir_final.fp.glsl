@@ -15,6 +15,8 @@ in vec2 v_texcoord;
 
 uniform int width, height;
 
+uniform int frameIdx;
+
 void main()
 {
     uint FragIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;

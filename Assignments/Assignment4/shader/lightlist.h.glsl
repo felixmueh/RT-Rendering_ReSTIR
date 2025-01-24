@@ -16,6 +16,7 @@ struct GBufferInfo {
     vec3 normal;
     vec3 position;
     vec3 albedo;
+    int frame;
 };
 
 Reservoir new_reservoir() {
@@ -62,6 +63,25 @@ void combine_reservoirs(inout Reservoir s, Reservoir r, GBufferInfo g, inout Rng
         s, r.out_sample, r.emission, length(contrib) * r.W * r.sample_count,
         rng
     );
+}
+
+float relative_distance(vec3 a, vec3 b) {
+    return length(a - b) / max(length(a), length(b));
+}
+
+bool validate_reuse(GBufferInfo p, GBufferInfo q, float threshold_normal, float threshold_albedo, float threshold_position) {
+    if (dot(p.normal, q.normal) < cos(threshold_normal * M_PI / 180)) {
+        return false; // normals are too different
+    }
+
+    if (length(p.albedo - q.albedo) > threshold_albedo) {
+        return false; // albedo is too different
+    }
+
+    if (relative_distance(p.position, q.position) > threshold_position) {
+        return false; // albedo is too different
+    }
+    return true;
 }
 
 layout (std430, binding = 6) buffer bEmissiveTriangles

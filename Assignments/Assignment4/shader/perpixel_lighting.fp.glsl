@@ -195,9 +195,12 @@ void main(void)
         reservoirOut[FragIdx] = r;
         out_color.xyz = vec3(0.1, 0.0, 0.0); // Dark red
 
-        gBuffer[FragIdx].normal = N;
-        gBuffer[FragIdx].position = P;
-        gBuffer[FragIdx].albedo = objMatDiffuse;
+        GBufferInfo gBufferInfo;
+        gBufferInfo.normal = N;
+        gBufferInfo.position = P;
+        gBufferInfo.albedo = objMatDiffuse;
+        gBufferInfo.frame = frameIdx;
+        gBuffer[FragIdx] = gBufferInfo;
         return;
     }
 

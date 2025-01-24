@@ -834,8 +834,6 @@ public:
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
 
-    BINDOGLTEX(prgReSTIRTemporal, "tPosition", tGPosition, GL_TEXTURE1);
-
     prgReSTIRTemporal.Uniform1i("width",  w);
     prgReSTIRTemporal.Uniform1i("height", h);
     prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
@@ -885,6 +883,7 @@ public:
     CheckGLError(-2);
     prgReSTIRFinal.Uniform1i((char const *)"height", h);
     CheckGLError(-3);
+    prgReSTIRFinal.Uniform1i((char const *)"frameIdx", frame);
 
     CheckGLError(1);
     wrapReSTIRFinal->draw();

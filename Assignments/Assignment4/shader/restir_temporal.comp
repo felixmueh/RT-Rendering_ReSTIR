@@ -18,9 +18,6 @@ uniform int last_frame_contribution_weight;
 // previous frame view-projection matrix
 uniform mat4 matVP_old;
 
-// current frame world space position from G-Buffer
-uniform sampler2D   tPosition; 
-
 
 void main()
 {
@@ -32,19 +29,17 @@ void main()
         return;
     }
     
-    // map from [0,width)x[0,height) to [0,1)x[0,1)
-    // note that we want to sample the texture at the center of the pixel, so we add 0.5 
-    vec2 texcoord = (vec2(pixel) + vec2(0.5, 0.5)) / vec2(width, height);
     int idx = pixel.y * width + pixel.x;
 
     rngInit(rng, uint64_t(frameIdx), uint64_t(idx));
 
-    // Read from tPosition
-    vec4 world_pos = textureLod(tPosition, texcoord, 0.0);
+    GBufferInfo gBufferInfo = gBuffer[idx];
 
-    if (abs(world_pos.w - 1.0) > 1e-6) {
-        return; // alpha channel is not 1, so it's not geometry -> nothing to resample anyways
+    if(gBufferInfo.frame != frameIdx) {
+        return; // nothing to resample from the first frame
     }
+    // Read from tPosition
+    vec4 world_pos = vec4(gBufferInfo.position, 1.0);
 
     // Reproject the current world space position back to the old frame's screen space
     vec4 old_screen_pos = matVP_old * world_pos;
@@ -70,7 +65,15 @@ void main()
     ivec2 reprojected_pixel = ivec2(reprojected_texcoord * vec2(width, height));
     int reprojected_idx = reprojected_pixel.y * width + reprojected_pixel.x;
 
-    GBufferInfo gBufferInfo = gBuffer[idx];
+    GBufferInfo gBufferInfo_prev = gBufferLastFrame[reprojected_idx];
+
+    if(gBufferInfo_prev.frame != frameIdx - 1) {
+        return; // nothing to resample from the previous frame
+    }
+
+    if(!validate_reuse(gBufferInfo, gBufferInfo_prev, 25.0, 0.1, 0.1)) {
+        return; // nothing to resample from the previous frame
+    };
 
     // load the reservoir from previous frame
     // TODO: validate reprojecttion (and discard if invalid)
