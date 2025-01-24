@@ -220,6 +220,8 @@ int mainProtoGLF( int argc, char **argv )
 	glfwWindowHint( GLFW_STENCIL_BITS, 8 );
 	glfwWindowHint( GLFW_DEPTH_BITS, 24 );
 
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
 	//glfwOpenWindowHint( GLFW_FSAA_SAMPLES, 4 );
 
 	windowSizeX = windowSizeX_initial;

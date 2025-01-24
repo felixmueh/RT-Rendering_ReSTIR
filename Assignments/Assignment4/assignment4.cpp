@@ -19,7 +19,6 @@
 #include "lightlist.h"
 #include "cbox.h"
 
-
 extern "C" {
 #ifdef _WIN32
 __declspec(dllexport) unsigned int NvOptimusEnablement = 1;
@@ -59,16 +58,31 @@ struct RenderSettings {
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
-  int n_samples = 2;
+  int n_samples = 4;
+  int n_spatial_iterations = 2;
 };
 
 RenderSettings renderSettings;
 
-static void CheckGLError() {
+struct ReSTIRSettings {
+  int last_frame_contribution_weight = 20;  // weighting of accumulated previous samples -> higher value increases temporal stability but might cause ghosting
+  int n_spatial_reuse_samples = 5;          // number of neighbouring reservoirs to reuse
+  int neighbor_distance = 30;               // size of the neighborhood square
+  float threshold_albedo = 0.1;             // albedo difference threshold for reuse (default: 10%)
+  float threshold_normal = 25.0;            // normal difference threshold in degree (default: 25 degree)
+  float threshold_position = 0.1;           // relative position difference threshold (default: 10%)
+};
+ReSTIRSettings restirSettings;
+
+static void CheckGLError(int idx = 0) {
   int err = 0;
   char msg[256];
   while ((err = glGetError()) != 0) {
-    sprintf(msg, "GL_ERROR=0x%x\n", err);
+    if (idx) {
+      sprintf(msg, "GL_ERROR[%d]=0x%x\n", idx, err);
+    } else {
+      sprintf(msg, "GL_ERROR=0x%x\n", err);
+    }
 #ifdef ANT_WINDOWS
     OutputDebugString(msg);
 #endif
@@ -140,6 +154,29 @@ void initializeTweakBar() {
   TwAddVarRW(bar, "Samples", TW_TYPE_INT32, &renderSettings.n_samples,
              " label='Samples' min=1 max=100 step=1 group='RIS' ");
 
+  TwAddVarRW(bar, "LastFrameContributionWeight", TW_TYPE_INT32, &restirSettings.last_frame_contribution_weight,
+              " label='Last Frame Contribution Weight' min=0 max=100 step=1 group='ReSTIR' ");
+
+  TwAddVarRW(bar, "NSpatialReuseSamples", TW_TYPE_INT32, &restirSettings.n_spatial_reuse_samples,
+              " label='Spatial Reuse Samples' min=0 max=10 step=1 group='ReSTIR' ");
+
+  TwAddVarRW(bar, "NeighborhoodSize", TW_TYPE_INT32, &restirSettings.neighbor_distance,
+              " label='Neighborhood Size' min=5 max=50 step=1 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdAlbedo", TW_TYPE_FLOAT, &restirSettings.threshold_albedo,
+      " label='Threshold Albedo' min=0.01 max=1.0 step=0.1 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdPosition", TW_TYPE_FLOAT, &restirSettings.threshold_position,
+      " label='Threshold Position' min=0.01 max=1.0 step=0.01 group='ReSTIR' ");
+
+  TwAddVarRW(
+      bar, "ThresholdNormal", TW_TYPE_FLOAT, &restirSettings.threshold_normal,
+      " label='Threshold Normal' min=0.0 max=360.0 step=1.0 group='ReSTIR' ");
+
+  TwAddVarRW(bar, "SpatialIterations", TW_TYPE_INT32, &renderSettings.n_spatial_iterations,
+             " label='Spatial Iterations' min=1 max=10 step=1 group='ReSTIR' ");
 
 }
 #endif
@@ -175,20 +212,33 @@ protected:
   GLSLProgram prgRender; // GLSL programs, each one can keep a vertex and a
                          // fragment shader
   IMWrap *wrap;          // wrapper for OpenGL immediate calls
+  IMWrap *wrapReSTIRFinal;
 
   GLSLProgram prgPostProc; // GLSL programs, each one can keep a vertex and a
                            // fragment shader
   GLSLProgram prgDepth;    // GLSL programs, each one can keep a vertex and a
                            // fragment shader
 
+  GLSLProgram prgReSTIRTemporal;
+  GLSLProgram prgReSTIRSpatial;
+  GLSLProgram prgReSTIRFinal;
+
   OGLTexture *tGPosition, *tGNormal, *tGColor;
 
   FramebufferObject pDeferredFBO;
   Renderbuffer pDeferredRenderBuffer;
 
-	LightList lights;
+  LightList lights;
   int reservoirStructSize;
-  GLuint reservoirBuffer;
+  int reservoirPerSampleSize;
+  GLuint reservoirBufferA;
+  GLuint reservoirBufferB;
+
+  GLuint gBufferCurrent;
+  GLuint gBufferLastFrame;
+  uint n_samples_allocated;
+
+  mat4x4 old_matVP;
 
 public:
   CRender() {
@@ -219,15 +269,15 @@ public:
     loadModels();
 
     GLuint program = prgRender.getProgramObject();
-    GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirs");
-    GLenum enums[] = { GL_BUFFER_DATA_SIZE };
-    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &reservoirStructSize);
+    reservoirStructSize = getGPUStructSize(program, "bReservoirIn");
+    reservoirPerSampleSize = reservoirStructSize * width * height;
 
-    glGenBuffers(1, &reservoirBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, reservoirBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    createReservoirBuffers(true);
+
+    int intGbufferStructSize = getGPUStructSize(program, "bGBuffer");
+
+    createBuffer(gBufferCurrent, intGbufferStructSize, width, height);
+    createBuffer(gBufferLastFrame, intGbufferStructSize, width, height);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -237,6 +287,22 @@ public:
   ~CRender() {
     if (scene)
       delete scene;
+
+    if (envmap)
+      delete envmap;
+
+    if(wrap)
+      delete wrap;
+
+    if(wrapReSTIRFinal)
+      delete wrapReSTIRFinal;
+
+    deleteBuffer(reservoirBufferA);
+    deleteBuffer(reservoirBufferB);
+    deleteBuffer(gBufferCurrent);
+    deleteBuffer(gBufferLastFrame);
+
+    TwTerminate();
   }
 
   //
@@ -256,13 +322,39 @@ public:
 
       vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
       // TODO: validate that additional lights don't darken the scene
-      vector<CpuEmissiveTriangle> notSeen =
-        generateEmissiveTrianglesForCBoxTest(10, 10, 0.05, 2.0);
-      emissiveTris.insert(emissiveTris.end(), notSeen.begin(), notSeen.end());
       // vector<CpuEmissiveTriangle> emissiveTris;
       // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
 
       lights.initialize(emissiveTris);
+  }
+
+  void loadShadersReSTIR(bool firstTime = false) {
+    bool success = true;
+
+    success &= prgReSTIRFinal.loadVertexShader(
+        tmpStrCat(path2Demo, "shader/restir_final.vp.glsl"));
+    success &= prgReSTIRFinal.loadFragmentShader(
+        tmpStrCat(path2Demo, "shader/restir_final.fp.glsl"));
+    success &= prgReSTIRFinal.link();
+
+    success &= prgReSTIRTemporal.loadComputeShader(
+        tmpStrCat(path2Demo, "shader/restir_temporal.comp"));
+    success &= prgReSTIRTemporal.link();
+
+    success &= prgReSTIRSpatial.loadComputeShader(
+        tmpStrCat(path2Demo, "shader/restir_spatial.comp"));
+    success &= prgReSTIRSpatial.link();
+
+    if (!success) {
+      if (firstTime)
+        exit(1);
+    }
+
+    CheckGLError();
+
+    wrapReSTIRFinal = createWrapper(prgReSTIRFinal);
+
+    CheckGLError();
   }
 
   //
@@ -287,6 +379,8 @@ public:
     glBindFragDataLocation(prgRender.getProgramObject(), 2, "out_normal");
 
     CheckGLError();
+
+    loadShadersReSTIR(firstTime);
 
 #ifdef USE_TWEAK_BAR
     if (firstTime) {
@@ -367,6 +461,42 @@ public:
     FramebufferObject::Disable();
   }
 
+    int getGPUStructSize(GLuint program, const char* blockName) {
+      GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, blockName);
+      GLenum enums[] = { GL_BUFFER_DATA_SIZE };
+      int structSize;
+      glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &structSize);
+      return structSize;
+    }
+
+  // Function to create a single OpenGL Shader Storage Buffer
+  void createBuffer(GLuint &buffer, GLsizeiptr structSize, int width, int height) {
+    GLsizeiptr bufferSize = structSize * width * height;
+
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, bufferSize, NULL, GL_DYNAMIC_COPY);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+  }
+
+  // Function to delete a single OpenGL Shader Storage Buffer
+  void deleteBuffer(GLuint &buffer) {
+    if (buffer != 0) {
+        glDeleteBuffers(1, &buffer);
+        buffer = 0; // Reset to avoid dangling references
+    }
+  }
+
+  void createReservoirBuffers(bool firstTime = false) {
+    if (!firstTime) {
+      deleteBuffer(reservoirBufferA);
+      deleteBuffer(reservoirBufferB);
+    }
+    n_samples_allocated = renderSettings.n_samples;
+    createBuffer(reservoirBufferA, reservoirStructSize * renderSettings.n_samples, width, height);
+    createBuffer(reservoirBufferB, reservoirStructSize * renderSettings.n_samples, width, height);
+  }
+
   void firstFramePrep() {
       scene->uploadBVH2GPU(width, height);
       scene->setBVHShaderUniforms(&prgRender);
@@ -375,6 +505,7 @@ public:
 
       mat4 matM;
       camera.computeMatrices(&trackball, matM, 0);
+      old_matVP = camera.matVP;
 
       lights.uploadLightList2GPU();
       lights.setLightListShaderUniforms(&prgRender);
@@ -602,6 +733,224 @@ public:
     CheckGLError();
   }
 
+  void sceneRenderGBuffersReSTIR(int frame) {
+
+    // Reallocate buffers if the number of samples changed
+    if (renderSettings.n_samples != n_samples_allocated) {
+      createReservoirBuffers();
+    }
+
+    //
+    // save current render target and viewport
+    //
+    GLint camRenderTarget, camViewPort[4];
+    glGetIntegerv(GL_DRAW_BUFFER, &camRenderTarget);
+    glGetIntegerv(GL_VIEWPORT, camViewPort);
+
+    //
+    // setup viewport and OpenGL-states
+    //
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
+
+    pDeferredFBO.Bind();
+    CheckGLError();
+
+    const GLenum buffers[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+                               GL_COLOR_ATTACHMENT2};
+    glDrawBuffers(3, buffers);
+
+#ifdef USE_TWEAK_BAR
+    setShaderUniformsTweakBar();
+#endif
+    CheckGLError();
+
+    // set some render states
+    glEnable(GL_DEPTH_TEST);
+    CheckGLError();
+    glEnable(GL_CULL_FACE);
+    CheckGLError();
+
+    glDepthFunc(GL_EQUAL);
+    // CheckGLError();
+    glDepthMask(GL_FALSE);
+    // CheckGLError();
+
+    // clear screen
+    glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // now bind the program and set the parameters
+    prgRender.bind();
+
+    envmap->bind(&prgRender);
+    CheckGLError();
+
+    // this makro bins the texture object 'tDiffuse' to the shader program
+    // 'prgRender' where the sampler is called 'tObjMapKd', and texture unit #0
+    // is used (essentially this is a bind + Uniform1i)
+    // BINDOGLTEX( prgRender, "tObjMapKd", tDiffuse,   GL_TEXTURE0 );
+    // BINDOGLTEX( prgRender, "tObjMapNs", tNormalMap, GL_TEXTURE1 );
+
+    // compute some matrices and set uniforms
+    mat4 matM, matNrml;
+    camera.computeMatrices(&trackball, matM, 0);
+    matNrml = transpose(inverse(matM));
+
+    CheckGLError();
+
+    static int sampleIdx = 0;
+    sampleIdx++;
+
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matM", 1, false, value_ptr(matM));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matNrml", 1, false,
+                               value_ptr(matNrml));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matMV", 1, false,
+                               value_ptr(camera.matMV));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matVP", 1, false,
+                               value_ptr(camera.matVP));
+    CheckGLError();
+    prgRender.UniformMatrix4fv((char const *)"matV", 1, false,
+                               value_ptr(camera.matV));
+    CheckGLError();
+
+    CheckGLError();
+    mat4 matMVP = camera.matMVP;
+    prgRender.UniformMatrix4fv((char *)"matMVP", 1, false, value_ptr(matMVP));
+    // prgRender.UniformMatrix4fv( (char const*)"matMVP",  1, false, value_ptr(
+    // camera.matMVP ) );
+    CheckGLError();
+
+    prgRender.Uniform3fv((char const *)"camPos", 1, value_ptr(camera.camPos));
+    prgRender.Uniform1f((char const *)"time", (float)frame);
+    prgRender.Uniform1i((char const *)"frameIdx", frame);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"width", w);
+    CheckGLError();
+    prgRender.Uniform1i((char const *)"height", h);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
+    CheckGLError();
+
+    prgRender.Uniform1i((char const *)"sample_mode",
+                        (int)renderSettings.sampleMode);
+
+    // write to A
+    // reservoirBufferB contains the result of the previous frame
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    // render objects
+    scene->draw(&prgRender, RENDER_MATERIALS);
+    CheckGLError();
+
+    //
+    // restore viewport and render target
+    //
+
+    CheckGLError();
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    // ====================================
+    // Temporal Pass
+    // ====================================
+
+    prgReSTIRTemporal.bind();
+    prgReSTIRTemporal.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRTemporal.Uniform1i("width",  w);
+    prgReSTIRTemporal.Uniform1i("height", h);
+    prgReSTIRTemporal.UniformMatrix4fv("matVP_old", 1, false, value_ptr(old_matVP));
+    prgReSTIRTemporal.Uniform1i((char const *)"last_frame_contribution_weight", restirSettings.last_frame_contribution_weight);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
+    prgReSTIRTemporal.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_LAST_FRAME_BINDING, gBufferLastFrame);
+
+    for (int i = 0; i < renderSettings.n_samples; i++) {
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
+
+      glDispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+    }
+
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    // ====================================
+    // Spatial Pass
+    // ====================================
+    prgReSTIRSpatial.bind();
+    prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRSpatial.Uniform1i((char const *)"width",  w);
+    prgReSTIRSpatial.Uniform1i((char const *)"height", h);
+
+    prgReSTIRSpatial.Uniform1i((char const *)"num_spatial_samples", restirSettings.n_spatial_reuse_samples);
+    prgReSTIRSpatial.Uniform1i((char const *)"neighbor_distance", restirSettings.neighbor_distance);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_albedo", restirSettings.threshold_albedo);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_position", restirSettings.threshold_position);
+    prgReSTIRSpatial.Uniform1f((char const *)"threshold_normal", restirSettings.threshold_normal);
+
+    prgReSTIRSpatial.Uniform1i((char const *)"frameIdx", frame);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+
+    for (int _j = 0; _j < renderSettings.n_spatial_iterations; _j++) {
+      for (int i = 0; i < renderSettings.n_samples; i++) {
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferA, i * reservoirPerSampleSize, reservoirPerSampleSize);
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_OUT_BINDING, reservoirBufferB, i * reservoirPerSampleSize, reservoirPerSampleSize);
+        glDispatchCompute((w + 7) / 8, (h + 7) / 8, 1);
+      }
+
+      glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+      std::swap(reservoirBufferA, reservoirBufferB);
+
+    }
+    std::swap(reservoirBufferA, reservoirBufferB);
+
+    // ====================================
+    // Render ReSTIR to screen
+    // ====================================
+
+    const GLenum finalBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, finalBuffers); // We only need to write one color now
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    prgReSTIRFinal.bind();
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, RESERVOIR_BUFFER_IN_BINDING, reservoirBufferB);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, GBUFFER_BINDING, gBufferCurrent);
+    CheckGLError(-1);
+    prgReSTIRFinal.Uniform1i((char const *)"width", w);
+    CheckGLError(-2);
+    prgReSTIRFinal.Uniform1i((char const *)"height", h);
+    CheckGLError(-3);
+    prgReSTIRFinal.Uniform1i((char const *)"frameIdx", frame);
+    prgReSTIRFinal.Uniform1i((char const *)"n_samples", renderSettings.n_samples);
+
+    CheckGLError(1);
+    wrapReSTIRFinal->draw();
+    CheckGLError(2);
+
+    pDeferredFBO.Disable();
+    glViewport(camViewPort[0], camViewPort[1], camViewPort[2], camViewPort[3]);
+    GLenum buffersCam[] = {(GLenum)camRenderTarget};
+    glDrawBuffers(1, buffersCam);
+    CheckGLError();
+
+    std::swap(gBufferCurrent, gBufferLastFrame);
+  }
+
   //
   // render post processing
   //
@@ -656,6 +1005,24 @@ public:
     }
     frame++;
 
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
+
+    if ((w != width) || (h != height)) {
+        // window has been resized, update the attributes
+        width = w;
+        height = h;
+
+        // recreate screenspace reservoir buffer size
+        deleteBuffer(reservoirBufferA);
+        deleteBuffer(reservoirBufferB);
+
+        // Create two buffers by calling the function twice
+        createBuffer(reservoirBufferA, reservoirStructSize, width, height);
+        createBuffer(reservoirBufferB, reservoirStructSize, width, height);
+    }
+
     useAccumulationBuffer =
         renderSettings
             .enableAccumulation; // call clearAccumulationBuffer(); in
@@ -676,7 +1043,13 @@ public:
       clearAccumulationBuffer();
 
     sceneRenderDepth();
-    sceneRenderGBuffers(frame);
+
+    // ReSTIR has its own pipeline / shaders
+    if (renderSettings.sampleMode == SAMPLE_MODE_RESTIR) {
+      sceneRenderGBuffersReSTIR(frame);
+    } else {
+      sceneRenderGBuffers(frame);
+    }
 
     if (offScreenRenderTarget)
       CRenderBase::prepareOffScreenRendering();
@@ -687,6 +1060,10 @@ public:
       CRenderBase::finishOffScreenRendering();
 
     scenePostProcess();
+
+    mat4 matM;
+	camera.computeMatrices(&trackball, matM, 0);
+	old_matVP = camera.matVP; // save the matrix for next frame!
   }
 };
 

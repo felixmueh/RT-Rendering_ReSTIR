@@ -1,0 +1,116 @@
+#version 430
+#extension GL_ARB_shader_storage_buffer_object : require
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_ARB_texture_multisample : enable
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+#include "common.h.glsl"
+#include "lightlist.h.glsl"
+#include "rng.h.glsl"
+
+uniform int width;
+uniform int height;
+uniform int frameIdx;
+
+uniform int last_frame_contribution_weight;
+uniform float threshold_albedo, threshold_normal, threshold_position;
+
+// previous frame view-projection matrix
+uniform mat4 matVP_old;
+
+
+void main()
+{
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    Rng rng;
+
+    // If out of range, return
+    if (pixel.x >= width || pixel.y >= height) {
+        return;
+    }
+    
+    int idx = pixel.y * width + pixel.x;
+
+    rngInit(rng, uint64_t(frameIdx), uint64_t(idx));
+
+    GBufferInfo gBufferInfo = gBuffer[idx];
+
+    if(gBufferInfo.frame != frameIdx) {
+        return; // nothing to resample from the first frame
+    }
+    // Read from tPosition
+    vec4 world_pos = vec4(gBufferInfo.position, 1.0);
+
+    // Reproject the current world space position back to the old frame's screen space
+    vec4 old_screen_pos = matVP_old * world_pos;
+    vec2 clipped = old_screen_pos.xy / old_screen_pos.w;
+    // map to range [0,1)
+    vec2 reprojected_texcoord = vec2(
+        0.5 * clipped.x + 0.5,
+        0.5 * clipped.y + 0.5
+    );
+	// only access temporal buffer if the reprojection was a success!
+    bool reprojected_successful = ((reprojected_texcoord.x >= 0) 
+		&& (reprojected_texcoord.x < 1.0) 
+		&& (reprojected_texcoord.y >= 0) 
+		&& (reprojected_texcoord.y < 1.0)
+    );
+    // we could do more validation here, i.e. compare current frame depth to old depth
+    // but for now we just check if the reprojection is within the previous frames bounds
+	
+    if (!reprojected_successful) {
+        return; // nothing to resue from previous frame, just continue with current reservoir
+    }
+
+    ivec2 reprojected_pixel = ivec2(reprojected_texcoord * vec2(width, height));
+    int reprojected_idx = reprojected_pixel.y * width + reprojected_pixel.x;
+
+    GBufferInfo gBufferInfo_prev = gBufferLastFrame[reprojected_idx];
+
+    if(gBufferInfo_prev.frame != frameIdx - 1) {
+        return; // nothing to resample from the previous frame
+    }
+
+    if(!validate_reuse(gBufferInfo, gBufferInfo_prev, threshold_normal, threshold_albedo, threshold_position)) {
+        return; // nothing to resample from the previous frame
+    };
+
+    // load the reservoir from previous frame
+    // TODO: validate reprojecttion (and discard if invalid)
+    Reservoir reservoir_prev = reservoirIn[reprojected_idx];
+
+    Reservoir reservoir_curr = reservoirOut[idx];
+
+    // Clamp M to reducre temporal influence
+    reservoir_prev.sample_count = min(reservoir_prev.sample_count, last_frame_contribution_weight * reservoir_curr.sample_count);
+
+    // combine the reservoirs and write the result to reservoirOut
+    // combine reservoir_pre and reservoir_curr
+    Reservoir s = new_reservoir();
+    combine_reservoirs(s, reservoir_curr, gBufferInfo, rng);
+    combine_reservoirs(s, reservoir_prev, gBufferInfo, rng);
+    s.sample_count = reservoir_curr.sample_count + reservoir_prev.sample_count;
+    vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
+
+    if (length(contrib) < 1e-6 || s.sample_count == 0) {
+        s.W = 0.0;
+    } else {
+        s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count)) * float(s.weight_sum);
+    }
+
+/*
+    if(reprojected_successful) {
+        combined_reservoir.f = vec3(0,1,0);
+    } else {
+        combined_reservoir.f = vec3(1,0,0);
+    }
+
+    combined_reservoir.f = vec3(abs(reprojected_texcoord.x - texcoord.x), abs(reprojected_texcoord.y - texcoord.y), 0) * 100;
+*/
+
+    // reservoirOut contains information about the current frame
+    // reservoirIn contains information about the previous frame
+    // Write to reservoirOut, read from both
+    reservoirOut[idx] = s;
+}
