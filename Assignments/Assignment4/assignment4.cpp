@@ -231,21 +231,16 @@ public:
 
     GLuint program = prgRender.getProgramObject();
     GLuint blockIndex = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, "bReservoirIn");
-    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, (GLenum[]){ GL_BUFFER_DATA_SIZE }, 1, NULL, &reservoirStructSize);
+    GLenum enums[] = { GL_BUFFER_DATA_SIZE };
+    glGetProgramResourceiv(program, GL_SHADER_STORAGE_BLOCK, blockIndex, 1, enums, 1, NULL, &reservoirStructSize);
 
     // NOTE: wrong size when resizing
     // TODO: resize buffer when resizing window
-    reservoirStructSize *= 2;
+    //reservoirStructSize *= 2;
 
-    glGenBuffers(1, &reservoirBufferA);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferA);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-    glGenBuffers(1, &reservoirBufferB);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, reservoirBufferB);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, reservoirStructSize * width * height, NULL, GL_DYNAMIC_COPY);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    // Create two buffers by calling the function twice
+    createReservoirBuffer(reservoirBufferA, reservoirStructSize, width, height);
+    createReservoirBuffer(reservoirBufferB, reservoirStructSize, width, height);
 
     // call it here so that these textures show up at the end in the texture
     // manager
@@ -255,6 +250,20 @@ public:
   ~CRender() {
     if (scene)
       delete scene;
+
+    if (envmap)
+      delete envmap;
+
+    if(wrap)
+      delete wrap;
+
+    if(wrapReSTIRFinal)
+      delete wrapReSTIRFinal;
+
+    deleteReservoirBuffer(reservoirBufferA);
+    deleteReservoirBuffer(reservoirBufferB);
+
+    TwTerminate();
   }
 
   //
@@ -414,6 +423,24 @@ public:
 
     // disable fbo rendering for now
     FramebufferObject::Disable();
+  }
+
+  // Function to create a single OpenGL Shader Storage Buffer
+  void createReservoirBuffer(GLuint &buffer, GLsizeiptr reservoirStructSize, int width, int height) {
+    GLsizeiptr bufferSize = reservoirStructSize * width * height;
+
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, bufferSize, NULL, GL_DYNAMIC_COPY);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+  }
+
+  // Function to delete a single OpenGL Shader Storage Buffer
+  void deleteReservoirBuffer(GLuint &buffer) {
+    if (buffer != 0) {
+        glDeleteBuffers(1, &buffer);
+        buffer = 0; // Reset to avoid dangling references
+    }
   }
 
   void firstFramePrep() {
@@ -889,6 +916,24 @@ public:
       firstFramePrep();
     }
     frame++;
+
+    int w, h;
+    glfwGetWindowSize(glfwWindow, &w, &h);
+    glViewport(0, 0, w, h);
+
+    if ((w != width) || (h != height)) {
+        // window has been resized, update the attributes
+        width = w;
+        height = h;
+
+        // recreate screenspace reservoir buffer size
+        deleteReservoirBuffer(reservoirBufferA);
+        deleteReservoirBuffer(reservoirBufferB);
+
+        // Create two buffers by calling the function twice
+        createReservoirBuffer(reservoirBufferA, reservoirStructSize, width, height);
+        createReservoirBuffer(reservoirBufferB, reservoirStructSize, width, height);
+    }
 
     useAccumulationBuffer =
         renderSettings
