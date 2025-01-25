@@ -5,11 +5,12 @@
 #include "rng.h.glsl"
 
 struct Reservoir {
-    vec3 out_sample;
-    vec3 emission;
-    float weight_sum;
-    float W;
-    int sample_count;
+    vec3 out_sample;    // 12 
+    float weight_sum;   // 4
+    vec3 emission;      // 12
+    float W;            // 4
+    vec3 padding;       // 12 (padding to align to 16 bytes)
+    int sample_count;   // 4
 };
 
 struct GBufferInfo {
