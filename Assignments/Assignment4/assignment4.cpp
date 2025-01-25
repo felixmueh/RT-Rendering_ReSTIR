@@ -18,6 +18,7 @@
 #include "shader/shared.h.glsl"
 #include "lightlist.h"
 #include "cbox.h"
+#include "framecapture.h"
 
 extern "C" {
 #ifdef _WIN32
@@ -54,11 +55,11 @@ typedef enum {
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_RESTIR;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_STREAMING_RIS;
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
-  int n_samples = 4;
+  int n_samples = 1;
   int n_spatial_iterations = 2;
 };
 
@@ -204,26 +205,7 @@ IMWrap *createWrapper(GLSLProgram &prg) {
   return wrapper;
 }
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
-void savePNG(std::string out_file, FramebufferObject *fbo, uint width, uint height) {
-    unsigned char *pixels = new unsigned char[width * height * 3];
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo->getID());
-    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // Flip image vertically (OpenGL's origin is bottom-left)
-    unsigned char *flippedPixels = new unsigned char[width * height * 3];
-    for (int y = 0; y < height; y++) {
-        memcpy(flippedPixels + (height - 1 - y) * width * 3, pixels + y * width * 3, width * 3);
-    }
-
-    stbi_write_png(out_file.c_str(), width, height, 3, flippedPixels, width * 3);
-    delete[] pixels;
-    delete[] flippedPixels;
-}
-
+// the frame indices at which screenshots are captured
 static std::vector<int> frames_to_capture = {1, 2, 10, 50};
 
 bool shouldCaptureFrame(int frame) {
@@ -266,8 +248,9 @@ protected:
 
   mat4x4 old_matVP;
 
-  FramebufferObject captureFBO;
+  std::shared_ptr<FramebufferObject> captureFBO;
   OGLTexture *captureAttachment;
+  shared_ptr<FrameCapture> capture;
 
 public:
   CRender() {
@@ -311,6 +294,20 @@ public:
     // call it here so that these textures show up at the end in the texture
     // manager
     CRenderBase::createTextures();
+
+    string technique_name;
+    switch(renderSettings.sampleMode) {
+    case SAMPLE_MODE_UNIFORM: technique_name = "Uniform"; break;
+    case SAMPLE_MODE_RIS: technique_name = "RIS"; break;
+    case SAMPLE_MODE_STREAMING_RIS: technique_name = "StreamingRIS"; break;
+    case SAMPLE_MODE_RESTIR: technique_name = "ReSTIR"; break;
+    default: technique_name = "Any";
+    };
+    string out_folder = (filesystem::path("captures") / technique_name).string();
+    capture = make_shared<FrameCapture>(captureFBO, width, height, out_folder);
+    
+    // zoom in a bit
+    trackball.mouseWheel(5);
   }
 
   ~CRender() {
@@ -486,12 +483,12 @@ public:
     // validate the fbo after attaching textures and render buffers
     pDeferredFBO.IsValid();
 
-
-    captureFBO.Bind();
+    captureFBO = make_shared<FramebufferObject>();
+    captureFBO->Bind();
     texMan->CreateTexture(&captureAttachment, w, h, GL_RGB, "capture");
-    captureFBO.AttachTexture(GL_TEXTURE_2D, captureAttachment->getID(),
+    captureFBO->AttachTexture(GL_TEXTURE_2D, captureAttachment->getID(),
                              GL_COLOR_ATTACHMENT0);
-    captureFBO.IsValid();
+    captureFBO->IsValid();
 
     // disable fbo rendering for now
     FramebufferObject::Disable();
@@ -1096,9 +1093,9 @@ public:
       CRenderBase::finishOffScreenRendering();
 
     if (shouldCaptureFrame(frame)) {
-        scenePostProcess(&captureFBO);
-        std::string out_file = "screenshot-" + std::to_string(frame) + ".png";
-        savePNG(out_file, &captureFBO, w, h);
+        scenePostProcess(captureFBO);
+        std::string out_file = "screenshot-" + std::to_string(frame);
+        capture->saveImage(out_file);
     } else {
         scenePostProcess();
     }

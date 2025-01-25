@@ -288,7 +288,7 @@ int mainProtoGLF( int argc, char **argv )
 
 
 
-void CRenderBase::scenePostProcess(FramebufferObject *targetFBO)
+void CRenderBase::scenePostProcess(shared_ptr<FramebufferObject> targetFBO)
 {
 	glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );

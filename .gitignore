@@ -6,6 +6,7 @@ data/
 /build/
 /Release/
 /Debug/
+captures/
 
 # Ignore shader error logs
 shader_error.glsl

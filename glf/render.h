@@ -440,7 +440,7 @@ public:
 		gamma = g;
 	}
 
-	virtual void scenePostProcess(FramebufferObject *targetFBO = nullptr);
+	virtual void scenePostProcess(shared_ptr<FramebufferObject> targetFBO = nullptr);
 
 	void renderGrid()
 	{
