@@ -55,7 +55,7 @@ typedef enum {
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_STREAMING_RIS;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_RESTIR;
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
@@ -74,6 +74,9 @@ struct ReSTIRSettings {
   float threshold_position = 0.1;           // relative position difference threshold (default: 10%)
 };
 ReSTIRSettings restirSettings;
+
+// the frame indices at which screenshots are captured
+static std::vector<int> frames_to_capture = {1,2,5,10};
 
 static void CheckGLError(int idx = 0) {
   int err = 0;
@@ -205,13 +208,6 @@ IMWrap *createWrapper(GLSLProgram &prg) {
   return wrapper;
 }
 
-// the frame indices at which screenshots are captured
-static std::vector<int> frames_to_capture = {1, 2, 10, 50};
-
-bool shouldCaptureFrame(int frame) {
-    return std::find(frames_to_capture.begin(), frames_to_capture.end(), frame) != frames_to_capture.end();
-}
-
 class CRender : public CRenderBase {
 protected:
   Scene *scene;  // scene for loading .obj and computing a BVH
@@ -251,6 +247,7 @@ protected:
   std::shared_ptr<FramebufferObject> captureFBO;
   OGLTexture *captureAttachment;
   shared_ptr<FrameCapture> capture;
+  bool screenshotKeyPressed;
 
 public:
   CRender() {
@@ -270,6 +267,8 @@ public:
                               // default) then accumulation buffer images will
                               // be accumulated using exponentially weighted
                               // averaging
+
+    screenshotKeyPressed = false;
 
     // called here as the initialization depends on some flags we can set in
     // CRender
@@ -528,6 +527,15 @@ public:
     n_samples_allocated = renderSettings.n_samples;
     createBuffer(reservoirBufferA, reservoirStructSize * renderSettings.n_samples, width, height);
     createBuffer(reservoirBufferB, reservoirStructSize * renderSettings.n_samples, width, height);
+  }
+
+  bool shouldCaptureFrame(int frame) {
+    return std::find(frames_to_capture.begin(), frames_to_capture.end(), frame) != frames_to_capture.end();
+  }
+
+  bool	keyboard( int key, int action ) {
+    if (key == GLFW_KEY_C) screenshotKeyPressed = true;
+    return CRenderBase::keyboard( key, action );
   }
 
   void firstFramePrep() {
@@ -1092,13 +1100,17 @@ public:
     if (offScreenRenderTarget)
       CRenderBase::finishOffScreenRendering();
 
-    if (shouldCaptureFrame(frame)) {
+    if (shouldCaptureFrame(frame) || screenshotKeyPressed) {
         scenePostProcess(captureFBO);
         std::string out_file = "screenshot-" + std::to_string(frame);
+        if (screenshotKeyPressed) {
+            out_file += "-keypress";
+        }
         capture->saveImage(out_file);
     } else {
         scenePostProcess();
     }
+    screenshotKeyPressed = false;
     
 
     mat4 matM;

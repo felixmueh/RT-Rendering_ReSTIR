@@ -293,6 +293,8 @@ void CRenderBase::scenePostProcess(shared_ptr<FramebufferObject> targetFBO)
 	glBindFramebuffer( GL_READ_FRAMEBUFFER, 0 );
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
 
+	isScreenshot = (targetFBO != nullptr);
+
 	for ( int i = 8; i >= 0; i-- )
 	{
 		glBindMultiTextureEXT( GL_TEXTURE0 + i, GL_TEXTURE_2D, 0 );

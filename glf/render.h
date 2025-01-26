@@ -80,6 +80,8 @@ private:
 
 	float				exposure, gamma;
 
+	bool isScreenshot = false;
+
 public:
 	TrackBall			trackball;
 
@@ -626,7 +628,7 @@ public:
 		font->setMatrices();
 		char status[ 512 ];
 		sprintf( status, "%s @ fps %2.1f", glGetString( GL_RENDERER ), lastFPS );
-		font->print( status, 0, 0 );
+		if (!isScreenshot) font->print( status, 0, 0 );
 
 		glm::vec3 p = trackball.getCameraPosition();
 		glm::vec3 t = trackball.getCameraTarget();
