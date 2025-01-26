@@ -541,6 +541,7 @@ public:
   void firstFramePrep() {
       scene->uploadBVH2GPU(width, height);
       scene->setBVHShaderUniforms(&prgRender);
+      scene->setBVHShaderUniforms(&prgReSTIRFinal);
 
       loadShaders();
 
