@@ -268,12 +268,12 @@ void main(void)
             vec3 dir = onb(N) * squareToUniformHemisphere(rngRndVec2(rng));
             float pdf = pdfSquareToUniformHemisphere(dir);
 
-            Ray r = createRay(P + dir * 1e-3, dir, 0, 1e30);
+            Ray r = createRay(P + N * 1e-3, dir, 0, 1e30);
             // trace ray, accumulate lighting if intersecting emissive triangle
             if ( traceRay( r ) ) {
                 Intersection isect = getIntersection(r);
                 float cosTheta = max(dot(dir, N), 0.0);
-                color += 9.61 * objMatDiffuse * isect.emission * cosTheta / pdf;
+                color += objMatDiffuse * isect.emission * cosTheta / pdf;
             }
         }
     }

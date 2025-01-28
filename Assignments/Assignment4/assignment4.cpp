@@ -55,10 +55,14 @@ typedef enum {
   SAMPLE_MODE_HEMISPHERE = 4,
 } SAMPLE_MODE;
 
+// =================================================
+// DEFAULT SETTINGS, SCENE SELECTION & FRAME CAPTURE
+// =================================================
+
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_HEMISPHERE;
-  bool enableAccumulation = true;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_RESTIR;
+  bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
   int n_samples = 1;
@@ -78,7 +82,10 @@ struct ReSTIRSettings {
 ReSTIRSettings restirSettings;
 
 // the frame indices at which screenshots are captured
-static std::vector<int> frames_to_capture = {5000};
+static std::vector<int> frames_to_capture = {50};
+
+const vector<string> scene_names = { "cbox.obj", "cbox-light.obj", "cbox-light-many.obj", "cbox-torus.obj", "sponza-many.obj" };
+const uint scene_idx = 2;
 
 static void CheckGLError(int idx = 0) {
   int err = 0;
@@ -107,14 +114,6 @@ makeDefineString(const std::map<std::string, std::string> &parameters) {
   std::copy(defines.begin(), defines.end(),
             std::ostream_iterator<std::string>(result, "\n"));
   return result.str();
-}
-
-glm::mat4 getTransformationMatrix(float d_y, float d_z) {
-    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, d_y, d_z));
-
-    glm::mat4 transformation = translation * rotation;
-    return transformation;
 }
 
 void initializeTweakBar() {
@@ -351,22 +350,26 @@ public:
 
       envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
-      vector<string> scene_names = { "cbox.obj", "cbox-light.obj", "cbox-torus.obj", "sponza-many.obj" };
-      uint scene_idx = 3;
+      
       mat4x4 transform;
-      if(scene_idx == 3) {
+      if(scene_idx == 4) {
         // rotate sponza for good initial camera placement xD
-          transform = getTransformationMatrix(0.25,-1.3);
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 15.0f));
+        transform = translation * rotation;
+      } else {
+        // scale and translate cbox for good initial camera placement
+        transform = glm::scale(glm::mat4(1.0f), vec3(0.5)) * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
       }
       //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
       //    (const char**)attribs, "cbox.obj", "./data/", false);
       //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
       //    (const char**)attribs, "sponza-many.obj", "./data/Edited/", true);
       scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
-            (const char**)attribs, scene_names[scene_idx].c_str(), "./data/Assignment4/", true, &transform);
+            (const char**)attribs, scene_names[scene_idx].c_str(), "./data/Assignment4/", false, &transform);
       scene->buildBVH(0);
       
-      if(scene_idx == 0) {
+      if (scene_idx == 0) {
         vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
         // TODO: validate that additional lights don't darken the scene
         // vector<CpuEmissiveTriangle> emissiveTris;
