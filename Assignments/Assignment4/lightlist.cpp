@@ -41,6 +41,27 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
     cdf.back() = 1.0f;
 }
 
+void LightList::initialize(const Scene& scene)
+{
+    vector<CpuEmissiveTriangle> lights;
+        
+#define VTX4( k ) ( *( (vec3*)&scene.shapes[ i ].mesh.positions[ 3 * scene.shapes[ i ].mesh.indices[f+(k)] + 0 ] ) )
+    for (int i = 0; i < scene.nShapes; i++) {
+        vec3 emission = vec3(scene.shapes[i].material.emission[0], scene.shapes[i].material.emission[1], scene.shapes[i].material.emission[2]);
+        if(any(greaterThan(emission, vec3(0)))) {
+            // shape has emissive material, add all it's triangles to the lightlist!
+
+            for (unsigned int f = 0; f < scene.shapes[i].mesh.indices.size(); f += 3) {
+                vec3 p1 = VTX4(0);
+                vec3 p2 = VTX4(1);
+                vec3 p3 = VTX4(2);
+                lights.push_back(CpuEmissiveTriangle(p1,p2,p3,emission));
+            }
+        }
+    }
+    initialize(lights);
+}
+
 void LightList::uploadLightList2GPU()
 {
     // prepare EmissiveTriangles for upload to gpu by compressing them

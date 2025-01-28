@@ -26,6 +26,7 @@ class LightList {
 public:
 	LightList();
 	void initialize(const vector<CpuEmissiveTriangle>& _triangles);
+	void initialize(const Scene& scene);
 	void uploadLightList2GPU();
 	void setLightListShaderUniforms(GLSLProgram* prg);
 
