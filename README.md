@@ -55,3 +55,11 @@ Screen captrues in PNG and PFM format can be created by adding the frame indices
 ```
 Alternatively, use the keybind `C` to capture the image that is currently displayed.
 
+### Triangle Sampling
+To facilitate scenes with large amounts of emissive trangles we have implemented alias sampling (Walker). Sampling via alias tables can be *disabled* by removeing line 3 in lightlist.h.glsl:
+
+``` glsl
+#define SAMPLE_ALIAS
+```
+Fast sampling of emissive triangles is important for a fair performance comparison since RIS type algithms require an increased amount of sampling. Simple tests showed a speed improvement of a order of magnitude even for medium sized light sources.
+

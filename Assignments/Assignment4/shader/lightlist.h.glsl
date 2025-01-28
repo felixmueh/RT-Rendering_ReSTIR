@@ -1,5 +1,6 @@
 #ifndef GLSL_LIGHTLIST
 #define GLSL_LIGHTLIST
+#define SAMPLE_ALIAS
 
 #include "shared.h.glsl"
 #include "rng.h.glsl"
@@ -121,6 +122,10 @@ layout(std430, binding = GBUFFER_LAST_FRAME_BINDING) buffer bGBufferLastFrame {
     GBufferInfo gBufferLastFrame[];
 };
 
+layout(std430, binding = TRIANGLE_CDF_BINDING) buffer bEmissiveCDF {
+    float emissiveCDF[];
+};
+
 uniform float totalArea;
 uniform int nEmissiveTriangles;
 
@@ -158,6 +163,15 @@ vec3 samplePoint(GpuEmissiveTriangle t, vec2 rnd) {
     return sampledPoint;
 }
 
+uint sampleTriangleCDFSum(float rnd) {
+  uint i = 0;
+  while(emissiveCDF[i] < rnd) {
+    i++;
+  }
+  return i;
+}
+
+// Sample a triangle using alias (Walker) table
 uint sampleTriangle(float rnd) {
     // Convert rnd in [0,1] to an integer in [0, nEmissiveTriangles-1]
     float scaled = rnd * float(nEmissiveTriangles);
@@ -170,7 +184,11 @@ uint sampleTriangle(float rnd) {
 
 // draw a random sample from the emissive triangles
 void sampleLight(vec3 rnd, out vec3 emission, out vec3 pos, out vec3 normal, out float pdf) {
+#ifdef SAMPLE_ALIAS
   GpuEmissiveTriangle triangle = emissiveTriangles[sampleTriangle(rnd.x)];
+#else
+  GpuEmissiveTriangle triangle = emissiveTriangles[sampleTriangleCDFSum(rnd.x)];
+#endif
   vec3 p1, p2, p3;
   unpackEmissiveTriangle(triangle, p1, p2, p3, emission);
   pos = samplePoint(triangle, rnd.yz);

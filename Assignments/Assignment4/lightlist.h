@@ -38,6 +38,7 @@ private:
 	
 private:
 	vector<CpuEmissiveTriangle> triangles;	// list of emissive triangles
+	vector<float> cdf;                      // CDF for trivial sampling
 	vector<float> aliasProb;				// alias probabilities for discrete sampling
 	vector<uint32_t> aliasIndex;				// alias indices for discrete sampling
 	float totalArea;						// total area of the triangles

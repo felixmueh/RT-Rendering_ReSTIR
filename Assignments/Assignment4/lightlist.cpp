@@ -24,11 +24,27 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
     triangles.clear();
     triangles = _triangles;
 
+    cdf.clear();
+    cdf.reserve(triangles.size());
+
     // Compute total area
     totalArea = 0.0f;
     for (const auto& tri : triangles) {
         totalArea += tri.computeArea();
     }
+
+    // Compute CDF
+    float cumulativeSum = 0.0f;
+    for (const auto& tri : triangles) {
+        cumulativeSum += tri.computeArea();
+        cdf.push_back(cumulativeSum / totalArea); // Normalize by total area
+    }
+    std::cout << cdf.back();
+    assert(cdf.back() >= (1.0 - 1e-10));
+    assert(cdf.back() <= (1.0 + 1e-10));
+    cdf.back() = 1.0f;
+
+    // Build alias table
 
     // Prepare local arrays for building alias table
     size_t N = triangles.size();
@@ -134,6 +150,10 @@ void LightList::uploadLightList2GPU()
         aliasIndex.data(),
         sizeof(uint32_t) * aliasIndex.size()
     );
+
+    csCdf = createShaderStorageBuffer(sizeof(float) * cdf.size());
+    copyMem2StorageBuffer(csCdf, cdf.data(),
+        sizeof(float) * cdf.size());
 }
 
 void LightList::setLightListShaderUniforms(GLSLProgram* prg)
@@ -159,6 +179,11 @@ void LightList::setLightListShaderUniforms(GLSLProgram* prg)
     binding_point_index = ALIAS_IDX_BINDING;
     glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csAliasIndex);
+
+    block_index = glGetProgramResourceIndex(prg->getProgramObject(), GL_SHADER_STORAGE_BLOCK, "bEmissiveCDF");
+    binding_point_index = TRIANGLE_CDF_BINDING;
+    glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csCdf);
 }
 
 uint LightList::nEmissiveTriangles()

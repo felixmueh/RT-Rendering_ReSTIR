@@ -88,7 +88,7 @@ ReSTIRSettings restirSettings;
 static std::vector<int> frames_to_capture = {50};
 
 const vector<string> scene_names = { "cbox.obj", "cbox-light.obj", "cbox-light-many.obj", "cbox-torus.obj", "sponza-many.obj" };
-const uint scene_idx = 2;
+const uint scene_idx = 3;
 
 static void CheckGLError(int idx = 0) {
   int err = 0;

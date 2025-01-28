@@ -27,6 +27,7 @@
 #define GBUFFER_LAST_FRAME_BINDING 11
 #define ALIAS_PROB_BINDING 12
 #define ALIAS_IDX_BINDING 13
+#define TRIANGLE_CDF_BINDING 14
 
 struct GpuEmissiveTriangle {
     FLOAT data[12]; // Stores (p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, emission.x, emission.y, emission.z)
