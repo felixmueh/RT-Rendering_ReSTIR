@@ -70,7 +70,7 @@ void main()
 
     s.sample_count = sample_count_sum;
 
-    vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
+    vec3 contrib = directLight(gBufferInfo.position, gBufferInfo.normal, gBufferInfo.albedo, s.out_sample, s.out_normal, s.emission);
 
     if (length(contrib) < 1e-6 || s.sample_count == 0) {
         s.W = 0.0;
@@ -78,6 +78,5 @@ void main()
         s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count)) * float(s.weight_sum);
     }
     
-
     reservoirOut[idx] = s;
 }

@@ -4,12 +4,13 @@
 #include "shared.h.glsl"
 #include "rng.h.glsl"
 
-struct Reservoir {
-    vec3 out_sample;
-    vec3 emission;
-    float weight_sum;
-    float W;
-    int sample_count;
+struct Reservoir {      // Size for correct alignment: 48 Bytes
+    vec3 out_sample;    // 12 
+    float weight_sum;   // 4
+    vec3 emission;      // 12
+    float W;            // 4
+    vec3 out_normal;    // 12 
+    int sample_count;   // 4
 };
 
 struct GBufferInfo {
@@ -22,6 +23,7 @@ struct GBufferInfo {
 Reservoir new_reservoir() {
     Reservoir r;
     r.out_sample = vec3(0.0);
+    r.out_normal = vec3(0.0);
     r.emission = vec3(0.0);
     r.W = 0.0;
     r.weight_sum = 0.0;
@@ -29,19 +31,23 @@ Reservoir new_reservoir() {
     return r;
 }
 
-vec3 directLight(vec3 pos, vec3 light_pos, vec3 emission, vec3 normal, vec3 albedo) {
+// evaluate rendering equation for a given surface (pos, normal, albedo) and light source (light_pos, light_normal, emission)
+vec3 directLight(vec3 pos, vec3 normal, vec3 albedo, vec3 light_pos, vec3 light_normal, vec3 emission) {
     vec3 PL = light_pos-pos;
     vec3 dir = normalize(PL);
     float dist = length(PL);
-    float geometry_term = max(dot(dir, normal), 0.0) / (dist*dist); // for area lights we could use cosTheta at light normal as well
+    float cosThetaL = abs(dot(-dir, light_normal)); // NOTE: our emissive triangles emit light in both directions...
+    float cosTheta = max(dot(dir, normal), 0.0);    // ... but surfaces are illuminated only at the front facing side
+    float geometry_term = cosTheta * cosThetaL / (dist*dist);
     return emission * albedo * geometry_term;
 }
 
-void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float weight, inout Rng rng) {
+void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 n, vec3 emission, float weight, inout Rng rng) {
     reservoir.sample_count++;
     reservoir.weight_sum += weight;
     if (rngRndFloat(rng) < weight / reservoir.weight_sum) {
         reservoir.out_sample = y;
+        reservoir.out_normal = n;
         reservoir.emission = emission;
     }
 }
@@ -57,10 +63,10 @@ void update_reservoir(inout Reservoir reservoir, vec3 y, vec3 emission, float we
 void combine_reservoirs(inout Reservoir s, Reservoir r, GBufferInfo g, inout Rng rng) {
     // recalculate the approximate rendering equation for the current frame
     vec3 contrib = directLight(
-            g.position, r.out_sample, r.emission, g.normal, g.albedo
+            g.position, g.normal, g.albedo, r.out_sample, r.out_normal, r.emission
         );
     update_reservoir(
-        s, r.out_sample, r.emission, length(contrib) * r.W * r.sample_count,
+        s, r.out_sample, r.out_normal, r.emission, length(contrib) * r.W * r.sample_count,
         rng
     );
 }
@@ -162,11 +168,14 @@ uint sampleTriangle(float rnd) {
     return (r < emissiveAliasPdf[i]) ? i : emissiveAliasIdx[i];
 }
 
-void sampleLight(vec3 rnd, out vec3 emission, out vec3 pos, out float pdf) {
+// draw a random sample from the emissive triangles
+void sampleLight(vec3 rnd, out vec3 emission, out vec3 pos, out vec3 normal, out float pdf) {
   GpuEmissiveTriangle triangle = emissiveTriangles[sampleTriangle(rnd.x)];
-  unpackEmissiveTriangle(triangle, emission);
+  vec3 p1, p2, p3;
+  unpackEmissiveTriangle(triangle, p1, p2, p3, emission);
   pos = samplePoint(triangle, rnd.yz);
   pdf = 1.0 / totalArea;
+  normal = normalize(cross(p2 - p1, p3 - p1));
 }
 
 float min_dist_to_triangle_vertices(vec3 pos) {

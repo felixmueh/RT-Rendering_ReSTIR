@@ -1,0 +1,318 @@
+# Blender 4.3.2 MTL File: 'None'
+# www.blender.org
+
+newmtl Light1
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.110477 0.597170 0.800283
+Ks 0.500000 0.500000 0.500000
+Ke 0.746157 2.610555 5.000000
+Ni 1.500000
+d 1.000000
+illum 2
+
+newmtl Sun
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 50.000000 49.561050 10.733402
+Ni 1.500000
+d 1.000000
+illum 2
+
+#==================================================
+newmtl sp_00_luk_mali
+Ns 50
+Ka 0 0 0
+Kd 0.745098 0.7098039 0.6745098
+Ks 0 0 0
+map_Kd sp_luk.tga
+map_Bump sp_luk-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_svod_kapitel
+Ns 50
+Ka 0 0 0
+Kd 0.7137255 0.7058824 0.6588235
+Ks 0 0 0
+map_Kd 00_skap.tga
+map_Bump 00_skap.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stub_baza_
+Ns 20
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+Ks 0 0 0
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stub_kut
+Ns 50
+Ka 0 0 0
+Kd 0.7372549 0.7098039 0.6705882
+Ks 0 0 0
+map_Kd 01_STUB.tga
+map_Bump 01_STUB-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_stup
+Ns 50
+Ka 0 0 0
+Kd 0.7372549 0.7098039 0.6705882
+Ks 0 0 0
+map_Kd 01_STUB.tga
+map_Bump 01_STUB-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stub_baza
+Ns 50
+Ka 0 0 0
+Kd 0.8 0.7843137 0.7490196
+Ks 0 0 0
+map_Kd 01_S_ba.tga
+map_Bump 01_S_ba.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_luk_mal1
+Ns 50
+Ka 0 0 0
+Kd 0.745098 0.7098039 0.6745098
+Ks 0 0 0
+map_Kd 01_St_kp.tga
+map_Bump 01_St_kp-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stub
+Ns 50
+Ka 0 0 0
+Kd 0.7372549 0.7098039 0.6705882
+Ks 0 0 0
+map_Kd 01_STUB.tga
+map_Bump 01_STUB-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stup
+Ns 50
+Ka 0 0 0
+Kd 0.827451 0.8 0.7686275
+Ks 0 0 0
+map_Kd x01_st.tga
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_vijenac
+Ns 50
+Ka 0 0 0
+Kd 0.7137255 0.7058824 0.6588235
+Ks 0 0 0
+map_Kd 00_skap.tga
+map_Bump 00_skap.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_svod
+Ns 1
+Ka 0.145098 0.145098 0.145098
+Kd 0.9411765 0.8666667 0.7372549
+Ks 0.03529412 0.03137255 0.02745098
+map_Kd KAMEN-stup.tga
+map_Bump KAMEN-stup.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_02_reljef
+Ns 50
+Ka 0 0 0
+Kd 0.5294118 0.4980392 0.4901961
+Ks 0 0 0
+map_Kd reljef.tga
+map_Bump reljef-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_luk_a
+Ns 50
+Ka 0 0 0
+Kd 0.745098 0.7098039 0.6745098
+Ks 0 0 0
+map_Kd sp_luk.tga
+map_Bump sp_luk-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_zid_vani
+Ns 50
+Ka 0 0 0
+Kd 0.627451 0.572549 0.5607843
+Ks 0 0 0
+map_Kd KAMEN.tga
+map_Bump KAMEN-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_01_stup_baza
+Ns 50
+Ka 0 0 0
+Kd 0.8 0.7843137 0.7490196
+Ks 0 0 0
+map_Kd 01_S_ba.tga
+map_Bump 01_S_ba.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_zid
+Ns 50
+Ka 0 0 0
+Kd 0.627451 0.572549 0.5607843
+Ks 0 0 0
+map_Kd KAMEN.tga
+map_Bump KAMEN-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_prozor
+Ns 50
+Ka 0 0 0
+Kd 1 1 1
+Ks 0 0 0
+map_Kd prozor1.tga
+map_Bump prozor1.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_vrata_krug
+Ns 20
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+Ks 0 0 0
+map_Kd vrata_kr.tga
+map_Bump vrata_kr.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_pod
+Ns 50
+Ka 0 0 0
+Kd 0.627451 0.572549 0.5607843
+Ks 0 0 0
+map_Kd KAMEN.tga
+map_Bump KAMEN-bump.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+ 
+#==================================================
+newmtl sp_00_vrata_kock
+Ns 20
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+Ks 0 0 0
+map_Kd vrata_ko.tga
+map_Bump vrata_ko.tga
+#bump_size 1
+d 1
+#r 0
+#metal
+#blend 0
+#cell_hi
+

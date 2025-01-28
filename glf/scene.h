@@ -648,6 +648,8 @@ public:
                                   shapes[i].material.diffuse[2]);
                     vec3 s = vec3(shapes[i].material.specular[0], shapes[i].material.specular[1],
                                   shapes[i].material.specular[2]);
+                    vec3 e = vec3(shapes[i].material.emission[0], shapes[i].material.emission[1],
+                                  shapes[i].material.emission[2]);
 
                     kd = luminance(d);
                     ks = luminance(s);
@@ -667,6 +669,10 @@ public:
                     bvh->matList[i].data[7] = s.z;
                     bvh->matList[i].data[8] = std::max(
                         100.0f, std::min(1.0f, shapes[i].material.shininess / 128.0f * 1000.0f));
+
+                    bvh->matList[i].data[9] = e.x;
+                    bvh->matList[i].data[10] = e.y;
+                    bvh->matList[i].data[11] = e.z;
                 }
 
                 bvh->nMaterials++;

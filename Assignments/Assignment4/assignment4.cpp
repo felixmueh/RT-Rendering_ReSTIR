@@ -12,12 +12,17 @@
 
 #include <iterator>
 
+#ifdef _WIN32
+#include <glm/gtc/matrix_transform.hpp>
+#endif
+
 #include "stdafx.h"
 
 #include "opengl_debug.h"
 #include "shader/shared.h.glsl"
 #include "lightlist.h"
 #include "cbox.h"
+#include "framecapture.h"
 
 extern "C" {
 #ifdef _WIN32
@@ -46,11 +51,16 @@ typedef enum {
 } RENDER_MODE;
 
 typedef enum {
-  SAMPLE_MODE_UNIFORM = 0,
+  SAMPLE_MODE_UNIFORM_LIGHTS = 0,
   SAMPLE_MODE_RIS = 1,
   SAMPLE_MODE_STREAMING_RIS = 2,
   SAMPLE_MODE_RESTIR = 3,
+  SAMPLE_MODE_HEMISPHERE = 4,
 } SAMPLE_MODE;
+
+// =================================================
+// DEFAULT SETTINGS, SCENE SELECTION & FRAME CAPTURE
+// =================================================
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
@@ -58,7 +68,7 @@ struct RenderSettings {
   bool enableAccumulation = false;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
-  int n_samples = 4;
+  int n_samples = 1;
   int n_spatial_iterations = 2;
 };
 
@@ -73,6 +83,12 @@ struct ReSTIRSettings {
   float threshold_position = 0.1;           // relative position difference threshold (default: 10%)
 };
 ReSTIRSettings restirSettings;
+
+// the frame indices at which screenshots are captured
+static std::vector<int> frames_to_capture = {50};
+
+const vector<string> scene_names = { "cbox.obj", "cbox-light.obj", "cbox-light-many.obj", "cbox-torus.obj", "sponza-many.obj" };
+const uint scene_idx = 2;
 
 static void CheckGLError(int idx = 0) {
   int err = 0;
@@ -126,7 +142,8 @@ void initializeTweakBar() {
                                {RENDER_MODE_NORMAL, "GBuffer - Normal"},
                                {RENDER_MODE_POSITION, "GBuffer - Position"}};
 
-  TwEnumVal twSampleModes[] = {{SAMPLE_MODE_UNIFORM, "Uniform"},
+  TwEnumVal twSampleModes[] = {{SAMPLE_MODE_HEMISPHERE, "Uniform Hemisphere Sampling"},
+                               {SAMPLE_MODE_UNIFORM_LIGHTS, "Uniform Light Sampling"},
                                {SAMPLE_MODE_RIS, "RIS"},
                                {SAMPLE_MODE_STREAMING_RIS, "Streaming RIS"},
                                {SAMPLE_MODE_RESTIR, "ReSTIR"}};
@@ -240,6 +257,11 @@ protected:
 
   mat4x4 old_matVP;
 
+  std::shared_ptr<FramebufferObject> captureFBO;
+  OGLTexture *captureAttachment;
+  shared_ptr<FrameCapture> capture;
+  bool screenshotKeyPressed;
+
 public:
   CRender() {
     initializeOpenGLDebugCallback();
@@ -258,6 +280,8 @@ public:
                               // default) then accumulation buffer images will
                               // be accumulated using exponentially weighted
                               // averaging
+
+    screenshotKeyPressed = false;
 
     // called here as the initialization depends on some flags we can set in
     // CRender
@@ -282,6 +306,20 @@ public:
     // call it here so that these textures show up at the end in the texture
     // manager
     CRenderBase::createTextures();
+
+    string technique_name;
+    switch(renderSettings.sampleMode) {
+    case SAMPLE_MODE_UNIFORM_LIGHTS: technique_name = "UniformLights"; break;
+    case SAMPLE_MODE_RIS: technique_name = "RIS"; break;
+    case SAMPLE_MODE_STREAMING_RIS: technique_name = "StreamingRIS"; break;
+    case SAMPLE_MODE_RESTIR: technique_name = "ReSTIR"; break;
+    default: technique_name = "UniformHemisphere";
+    };
+    string out_folder = (filesystem::path("captures") / scene_names[scene_idx] / technique_name).string();
+    capture = make_shared<FrameCapture>(captureFBO, width, height, out_folder);
+    
+    // zoom in a bit
+    trackball.mouseWheel(5);
   }
 
   ~CRender() {
@@ -315,17 +353,37 @@ public:
 
       envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
+      
+      mat4x4 transform;
+      if(scene_idx == 4) {
+        // rotate sponza for good initial camera placement xD
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 15.0f));
+        transform = translation * rotation;
+      } else {
+        // scale and translate cbox for good initial camera placement
+        transform = glm::scale(glm::mat4(1.0f), vec3(0.5)) * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+      }
+      //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+      //    (const char**)attribs, "cbox.obj", "./data/", false);
+      //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+      //    (const char**)attribs, "sponza-many.obj", "./data/Edited/", true);
       scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
-          (const char**)attribs, "cbox.obj", "./data/", false);
+            (const char**)attribs, scene_names[scene_idx].c_str(), "./data/Assignment4/", false, &transform);
       scene->buildBVH(0);
+      
+      if (scene_idx == 0) {
+        vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
+        // TODO: validate that additional lights don't darken the scene
+        // vector<CpuEmissiveTriangle> emissiveTris;
+        // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
 
-
-      vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
-      // TODO: validate that additional lights don't darken the scene
-      // vector<CpuEmissiveTriangle> emissiveTris;
-      // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
-
-      lights.initialize(emissiveTris);
+        lights.initialize(emissiveTris);
+      } else {
+          lights.initialize(*scene);
+      }
+      
+      std::cout << endl << "N Emissive Triangles: " << lights.nEmissiveTriangles() << endl; 
   }
 
   void loadShadersReSTIR(bool firstTime = false) {
@@ -457,6 +515,13 @@ public:
     // validate the fbo after attaching textures and render buffers
     pDeferredFBO.IsValid();
 
+    captureFBO = make_shared<FramebufferObject>();
+    captureFBO->Bind();
+    texMan->CreateTexture(&captureAttachment, w, h, GL_RGB, "capture");
+    captureFBO->AttachTexture(GL_TEXTURE_2D, captureAttachment->getID(),
+                             GL_COLOR_ATTACHMENT0);
+    captureFBO->IsValid();
+
     // disable fbo rendering for now
     FramebufferObject::Disable();
   }
@@ -497,9 +562,19 @@ public:
     createBuffer(reservoirBufferB, reservoirStructSize * renderSettings.n_samples, width, height);
   }
 
+  bool shouldCaptureFrame(int frame) {
+    return std::find(frames_to_capture.begin(), frames_to_capture.end(), frame) != frames_to_capture.end();
+  }
+
+  bool	keyboard( int key, int action ) {
+    if (key == GLFW_KEY_C) screenshotKeyPressed = true;
+    return CRenderBase::keyboard( key, action );
+  }
+
   void firstFramePrep() {
       scene->uploadBVH2GPU(width, height);
       scene->setBVHShaderUniforms(&prgRender);
+      scene->setBVHShaderUniforms(&prgReSTIRFinal);
 
       loadShaders();
 
@@ -925,6 +1000,9 @@ public:
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
 
     prgReSTIRFinal.bind();
 
@@ -1059,7 +1137,18 @@ public:
     if (offScreenRenderTarget)
       CRenderBase::finishOffScreenRendering();
 
-    scenePostProcess();
+    if (shouldCaptureFrame(frame) || screenshotKeyPressed) {
+        scenePostProcess(captureFBO);
+        std::string out_file = "screenshot-" + std::to_string(frame);
+        if (screenshotKeyPressed) {
+            out_file += "-keypress";
+        }
+        capture->saveImage(out_file);
+    } else {
+        scenePostProcess();
+    }
+    screenshotKeyPressed = false;
+    
 
     mat4 matM;
 	camera.computeMatrices(&trackball, matM, 0);

@@ -17,6 +17,10 @@ LightList::LightList() : totalArea(0.0f), csCdf(0), csTriangles(0), csAliasProb(
 
 void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
 {
+    if (_triangles.empty()) {
+        std::cout << "No emissive geometry provided!" << std::endl;
+        exit(1);
+    }
     triangles.clear();
     triangles = _triangles;
 
@@ -83,6 +87,27 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
     }
 }
 
+void LightList::initialize(const Scene& scene)
+{
+    vector<CpuEmissiveTriangle> lights;
+
+#define VTX4( k ) ( *( (vec3*)&scene.shapes[ i ].mesh.positions[ 3 * scene.shapes[ i ].mesh.indices[f+(k)] + 0 ] ) )
+    for (int i = 0; i < scene.nShapes; i++) {
+        vec3 emission = vec3(scene.shapes[i].material.emission[0], scene.shapes[i].material.emission[1], scene.shapes[i].material.emission[2]);
+        if(any(greaterThan(emission, vec3(0)))) {
+            // shape has emissive material, add all it's triangles to the lightlist!
+
+            for (unsigned int f = 0; f < scene.shapes[i].mesh.indices.size(); f += 3) {
+                vec3 p1 = VTX4(0);
+                vec3 p2 = VTX4(1);
+                vec3 p3 = VTX4(2);
+                lights.push_back(CpuEmissiveTriangle(p1,p2,p3,emission));
+            }
+        }
+    }
+    initialize(lights);
+}
+
 void LightList::uploadLightList2GPU()
 {
     // prepare EmissiveTriangles for upload to gpu by compressing them
@@ -134,6 +159,11 @@ void LightList::setLightListShaderUniforms(GLSLProgram* prg)
     binding_point_index = ALIAS_IDX_BINDING;
     glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csAliasIndex);
+}
+
+uint LightList::nEmissiveTriangles()
+{
+    return uint(triangles.size());
 }
 
 GLuint LightList::createShaderStorageBuffer(int size, GLenum usage)

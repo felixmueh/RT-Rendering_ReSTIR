@@ -77,7 +77,7 @@ void main()
     };
 
     // load the reservoir from previous frame
-    // TODO: validate reprojecttion (and discard if invalid)
+    // TODO: validate reprojection (and discard if invalid)
     Reservoir reservoir_prev = reservoirIn[reprojected_idx];
 
     Reservoir reservoir_curr = reservoirOut[idx];
@@ -91,7 +91,7 @@ void main()
     combine_reservoirs(s, reservoir_curr, gBufferInfo, rng);
     combine_reservoirs(s, reservoir_prev, gBufferInfo, rng);
     s.sample_count = reservoir_curr.sample_count + reservoir_prev.sample_count;
-    vec3 contrib = directLight(gBufferInfo.position, s.out_sample, s.emission, gBufferInfo.normal, gBufferInfo.albedo);
+    vec3 contrib = directLight(gBufferInfo.position, gBufferInfo.normal, gBufferInfo.albedo, s.out_sample, s.out_normal, s.emission);
 
     if (length(contrib) < 1e-6 || s.sample_count == 0) {
         s.W = 0.0;
@@ -99,18 +99,5 @@ void main()
         s.W = 1.0 / length(contrib) * (1.0 / float(s.sample_count)) * float(s.weight_sum);
     }
 
-/*
-    if(reprojected_successful) {
-        combined_reservoir.f = vec3(0,1,0);
-    } else {
-        combined_reservoir.f = vec3(1,0,0);
-    }
-
-    combined_reservoir.f = vec3(abs(reprojected_texcoord.x - texcoord.x), abs(reprojected_texcoord.y - texcoord.y), 0) * 100;
-*/
-
-    // reservoirOut contains information about the current frame
-    // reservoirIn contains information about the previous frame
-    // Write to reservoirOut, read from both
     reservoirOut[idx] = s;
 }

@@ -1,11 +1,18 @@
 # Ignore the data directory
 data/
+
+# Allow .obj and .mtl files inside data/Assignment4/
+!data/Assignment4/
+!data/Assignment4/*.obj
+!data/Assignment4/*.mtl
+
 /Assignment4
 
 # Ignore build directories
 /build/
 /Release/
 /Debug/
+captures/
 
 # Ignore shader error logs
 shader_error.glsl
@@ -21,3 +28,5 @@ Thumbs.db
 *.sdf
 *.VC.db
 *.log
+
+__pycache__
