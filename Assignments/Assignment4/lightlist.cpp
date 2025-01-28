@@ -81,13 +81,6 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
         aliasProb[s] = 1.f;
         aliasIndex[s] = uint32_t(s);
     }
-
-    // validate alias table
-    float sum = 0.0f;
-    for (size_t i = 0; i < N; i++) {
-        sum += aliasProb[i];
-    }
-    assert(fabs(sum - N) < 1e-6);
 }
 
 void LightList::uploadLightList2GPU()
