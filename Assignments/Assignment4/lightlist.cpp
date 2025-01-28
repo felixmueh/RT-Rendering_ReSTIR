@@ -60,34 +60,34 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
     aliasIndex.resize(N);
 
     // Temporary stacks
-    std::vector<size_t> small, large;
-    small.reserve(N);
+    std::vector<size_t> small_value, large;
+    small_value.reserve(N);
     large.reserve(N);
 
     // Scale probabilities by N
     for (size_t i = 0; i < N; i++) {
         aliasProb[i] = p[i] * float(N);
         if (aliasProb[i] < 1.f)
-            small.push_back(i);
+            small_value.push_back(i);
         else
             large.push_back(i);
     }
 
     // Walker's method
-    while (!small.empty() && !large.empty()) {
-        auto s = small.back();
-        small.pop_back();
+    while (!small_value.empty() && !large.empty()) {
+        auto s = small_value.back();
+        small_value.pop_back();
         auto l = large.back();
         large.pop_back();
         aliasIndex[s] = uint32_t(l);
         aliasProb[l] = (aliasProb[l] + aliasProb[s]) - 1.f;
         if (aliasProb[l] < 1.f)
-            small.push_back(l);
+            small_value.push_back(l);
         else
             large.push_back(l);
     }
 
-    // Anything remaining is either all small or all large
+    // Anything remaining is either all small_value or all large
     while (!large.empty()) {
         auto l = large.back();
         large.pop_back();
@@ -95,9 +95,9 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
         aliasIndex[l] = uint32_t(l);
     }
 
-    while (!small.empty()) {
-        auto s = small.back();
-        small.pop_back();
+    while (!small_value.empty()) {
+        auto s = small_value.back();
+        small_value.pop_back();
         aliasProb[s] = 1.f;
         aliasIndex[s] = uint32_t(s);
     }
