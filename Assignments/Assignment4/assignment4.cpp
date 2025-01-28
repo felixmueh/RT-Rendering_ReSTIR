@@ -11,6 +11,7 @@
 ////////////////////////////////////////////////////////////
 
 #include <iterator>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "stdafx.h"
 
@@ -47,16 +48,17 @@ typedef enum {
 } RENDER_MODE;
 
 typedef enum {
-  SAMPLE_MODE_UNIFORM = 0,
+  SAMPLE_MODE_UNIFORM_LIGHTS = 0,
   SAMPLE_MODE_RIS = 1,
   SAMPLE_MODE_STREAMING_RIS = 2,
   SAMPLE_MODE_RESTIR = 3,
+  SAMPLE_MODE_HEMISPHERE = 4,
 } SAMPLE_MODE;
 
 struct RenderSettings {
   RENDER_MODE renderMode = RENDER_MODE_SHADED;
-  SAMPLE_MODE sampleMode = SAMPLE_MODE_RESTIR;
-  bool enableAccumulation = false;
+  SAMPLE_MODE sampleMode = SAMPLE_MODE_HEMISPHERE;
+  bool enableAccumulation = true;
   bool resetAccumulationBuffer = false;
   float accumulationEWA = 1.0f;
   int n_samples = 1;
@@ -76,7 +78,7 @@ struct ReSTIRSettings {
 ReSTIRSettings restirSettings;
 
 // the frame indices at which screenshots are captured
-static std::vector<int> frames_to_capture = {1,2,5,10};
+static std::vector<int> frames_to_capture = {5000};
 
 static void CheckGLError(int idx = 0) {
   int err = 0;
@@ -107,6 +109,14 @@ makeDefineString(const std::map<std::string, std::string> &parameters) {
   return result.str();
 }
 
+glm::mat4 getTransformationMatrix(float d_y, float d_z) {
+    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, d_y, d_z));
+
+    glm::mat4 transformation = translation * rotation;
+    return transformation;
+}
+
 void initializeTweakBar() {
   if (bar != NULL)
     TwDeleteBar(bar);
@@ -130,7 +140,8 @@ void initializeTweakBar() {
                                {RENDER_MODE_NORMAL, "GBuffer - Normal"},
                                {RENDER_MODE_POSITION, "GBuffer - Position"}};
 
-  TwEnumVal twSampleModes[] = {{SAMPLE_MODE_UNIFORM, "Uniform"},
+  TwEnumVal twSampleModes[] = {{SAMPLE_MODE_HEMISPHERE, "Uniform Hemisphere Sampling"},
+                               {SAMPLE_MODE_UNIFORM_LIGHTS, "Uniform Light Sampling"},
                                {SAMPLE_MODE_RIS, "RIS"},
                                {SAMPLE_MODE_STREAMING_RIS, "Streaming RIS"},
                                {SAMPLE_MODE_RESTIR, "ReSTIR"}};
@@ -296,11 +307,11 @@ public:
 
     string technique_name;
     switch(renderSettings.sampleMode) {
-    case SAMPLE_MODE_UNIFORM: technique_name = "Uniform"; break;
+    case SAMPLE_MODE_UNIFORM_LIGHTS: technique_name = "UniformLights"; break;
     case SAMPLE_MODE_RIS: technique_name = "RIS"; break;
     case SAMPLE_MODE_STREAMING_RIS: technique_name = "StreamingRIS"; break;
     case SAMPLE_MODE_RESTIR: technique_name = "ReSTIR"; break;
-    default: technique_name = "Any";
+    default: technique_name = "UniformHemisphere";
     };
     string out_folder = (filesystem::path("captures") / technique_name).string();
     capture = make_shared<FrameCapture>(captureFBO, width, height, out_folder);
@@ -340,17 +351,33 @@ public:
 
       envmap->initialize(texMan, "data/mud_road_puresky_4k.hdr");
 
+      vector<string> scene_names = { "cbox.obj", "cbox-light.obj", "cbox-torus.obj", "sponza-many.obj" };
+      uint scene_idx = 3;
+      mat4x4 transform;
+      if(scene_idx == 3) {
+        // rotate sponza for good initial camera placement xD
+          transform = getTransformationMatrix(0.25,-1.3);
+      }
+      //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+      //    (const char**)attribs, "cbox.obj", "./data/", false);
+      //scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
+      //    (const char**)attribs, "sponza-many.obj", "./data/Edited/", true);
       scene->loadOBJ(SCENE_SMOOTH | SCENE_COLOR, prgRender.getProgramObject(), 3,
-          (const char**)attribs, "cbox.obj", "./data/", false);
+            (const char**)attribs, scene_names[scene_idx].c_str(), "./data/Assignment4/", true, &transform);
       scene->buildBVH(0);
+      
+      if(scene_idx == 0) {
+        vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
+        // TODO: validate that additional lights don't darken the scene
+        // vector<CpuEmissiveTriangle> emissiveTris;
+        // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
 
-
-      vector<CpuEmissiveTriangle> emissiveTris = generateEmissiveTrianglesForCBoxTest();
-      // TODO: validate that additional lights don't darken the scene
-      // vector<CpuEmissiveTriangle> emissiveTris;
-      // addSquareLight(emissiveTris, glm::vec3(0.0, 0.0, 0.499), 0.05);
-
-      lights.initialize(emissiveTris);
+        lights.initialize(emissiveTris);
+      } else {
+          lights.initialize(*scene);
+      }
+      
+      std::cout << endl << "N Emissive Triangles: " << lights.nEmissiveTriangles() << endl; 
   }
 
   void loadShadersReSTIR(bool firstTime = false) {
@@ -967,6 +994,9 @@ public:
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+
 
     prgReSTIRFinal.bind();
 

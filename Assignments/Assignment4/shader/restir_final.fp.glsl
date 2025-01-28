@@ -32,12 +32,12 @@ void main()
     for (int i = 0; i < n_samples; i++) {
         Reservoir r = reservoirIn[FragIdx + i * width * height];
         vec3 contrib = directLight(
-            gBufferInfo.position, r.out_sample, r.emission, gBufferInfo.normal, gBufferInfo.albedo
+            gBufferInfo.position, gBufferInfo.normal, gBufferInfo.albedo, r.out_sample, r.out_normal, r.emission
         );
         
         vec3 dir = r.out_sample - P;
         Ray ray = createRay(P + N * 1e-5, normalize(dir), 0, length(dir)-1e-3);
-        if ( traceRay( ray ) ) {
+        if ( castRay( ray ) ) {
             r.W = 0.0;
         }
         color += contrib * r.W;

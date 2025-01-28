@@ -98,12 +98,14 @@ float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
 layout(early_fragment_tests) in;
 
-vec3 directLightPerpixel(vec3 pos, vec3 light_pos, vec3 emission, float pdf) {
-    return directLight(pos, light_pos, emission, N, objMatDiffuse) / pdf;
+// MC estimate of the unshadowed direct illumination
+vec3 directLightPerpixel(vec3 pos, vec3 light_pos, vec3 light_normal, vec3 emission, float pdf) {
+    return directLight(pos, N, objMatDiffuse, light_pos, light_normal, emission) / pdf;
 }
 
-void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rng) {
+void sampleRis(out vec3 y, out vec3 n, out vec3 emission, out float weight_sum, inout Rng rng) {
     vec3 xs[N_CANDIDATES];
+    vec3 ns[N_CANDIDATES];
     float ws[N_CANDIDATES];
     vec3 emissions[N_CANDIDATES];
 
@@ -112,12 +114,14 @@ void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rn
         vec3 pos;
         float pdf;
         vec3 emission_inner;
-        sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
+        vec3 normal;
+        sampleLight(rngRndVec3(rng), emission_inner, pos, normal, pdf);
 
-        float weight = length(directLightPerpixel(P, pos, emission_inner, pdf));
+        float weight = length(directLightPerpixel(P, pos, normal, emission_inner, pdf));
 
         ws[i] = weight;
         xs[i] = pos;
+        ns[i] = normal;
         emissions[i] = emission_inner;
         weight_sum += weight;
     }
@@ -134,6 +138,7 @@ void sampleRis(out vec3 y, out vec3 emission, out float weight_sum, inout Rng rn
     }
     y = xs[i];
     emission = emissions[i];
+    n = ns[i];
 }
 
 Reservoir streamingRis(inout Rng rng) {
@@ -141,20 +146,17 @@ Reservoir streamingRis(inout Rng rng) {
 
     for (int i = 0; i < N_CANDIDATES; i++) {
         vec3 pos;
+        vec3 normal;
         float pdf;
         vec3 emission_inner;
-        sampleLight(rngRndVec3(rng), emission_inner, pos, pdf);
+        sampleLight(rngRndVec3(rng), emission_inner, pos, normal, pdf);
 
         // weight = \hat{p}_q(x_i) / p(x_i)
-        float weight = length(directLightPerpixel(P, pos, emission_inner, pdf));
-        update_reservoir(r, pos, emission_inner, weight, rng);
+        float weight = length(directLightPerpixel(P, pos, normal, emission_inner, pdf));
+        update_reservoir(r, pos, normal, emission_inner, weight, rng);
     }
 
-    vec3 pos = r.out_sample;
-    vec3 PL = pos-P;
-    vec3 dir = normalize(PL);
-    float dist = length(PL);
-    vec3 contrib = directLightPerpixel(P, pos, r.emission, 1.0);
+    vec3 contrib = directLightPerpixel(P, r.out_sample, r.out_normal, r.emission, 1.0);
     float p = length(contrib);
     if (length(p) < 1e-6) {
         // NOTE: multiply with 0 later so does not matter.
@@ -168,7 +170,6 @@ Reservoir streamingRis(inout Rng rng) {
 
 void main(void)
 {
-    // TODO: initialze last frame's reservoir buffer to 0 in the first frame?
     Rng rng;
     uint FragIdx = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * width;
     rngInit(rng, uint64_t(frameIdx), uint64_t(FragIdx));
@@ -178,10 +179,10 @@ void main(void)
 
     vec3 color = vec3(0.0f);
 
-
-    // TODO: implement multiple samples for restir (N=4?)
-    // This requires a reservoir buffer for every sample
     if (sample_mode == SAMPLE_MODE_RESTIR) {
+// ========================================
+// ReSTIR initialize reservoirs and GBuffer
+// ========================================
         for (int i = 0; i < n_samples; i++) {
             Reservoir r = streamingRis(rng);
 
@@ -190,7 +191,7 @@ void main(void)
             vec3 dir = normalize(PL);
             float dist = length(PL);
             Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
-            if ( traceRay( ray ) ) {
+            if ( castRay( ray ) ) {
                 r.W = 0.0;
             }
             reservoirOut[FragIdx + width * height * i] = r;
@@ -201,46 +202,53 @@ void main(void)
         gBufferInfo.albedo = objMatDiffuse;
         gBufferInfo.frame = frameIdx;
         gBuffer[FragIdx] = gBufferInfo;
+        out_color.xyz = objMatEmission;
         return;
     }
 
     for (int i = 0; i < n_samples; i++) {
         if (sample_mode == SAMPLE_MODE_UNIFORM) {
+// ========================================
+// Uniform light sampling and shading
+// ========================================
             vec3 rnd = rngRndVec3(rng);
-            vec3 pos, emission;
+            vec3 pos, normal, emission;
             float pdf;
-            sampleLight(rnd, emission, pos, pdf);
+            sampleLight(rnd, emission, pos, normal, pdf);
 
             vec3 PL = pos-P;
             vec3 dir = normalize(PL);
             float dist = length(PL);
             Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
-            if ( !traceRay( r ) ) {
-                vec3 f = directLightPerpixel(P, pos, emission, pdf);
-                color += f;
+            if ( !castRay( r ) ) {
+                color += directLightPerpixel(P, pos, normal, emission, pdf);
             }
         } else if (sample_mode == SAMPLE_MODE_RIS) {
+// ========================================
+// RIS sampling and shading
+// ========================================
             vec3 rnd = rngRndVec3(rng);
-            vec3 pos, emission;
-            float pdf;
-            // sampleLight(rnd, emission, pos, pdf);
-            float weight;
-            sampleRis(pos, emission, weight, rng);
+            vec3 pos, normal, emission;
+            float pdf, weight;
+            sampleRis(pos, normal, emission, weight, rng);
 
             vec3 PL = pos-P;
             vec3 dir = normalize(PL);
             float dist = length(PL);
             Ray r = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
-            if ( !traceRay( r ) ) {
-                vec3 f = directLightPerpixel(P, pos, emission, 1.0);
+            if ( !castRay( r ) ) {
+                vec3 f = directLightPerpixel(P, pos, normal, emission, 1.0);
                 if (length(f) > 1e-6) {
                     float p = length(f);
                     color += f / p * weight / float(N_CANDIDATES);
                 }
             }
         } else if (sample_mode == SAMPLE_MODE_STREAMING_RIS) {
+// ========================================
+// Streaming RIS sampling and shading
+// ========================================
             Reservoir r = streamingRis(rng);
 
             vec3 pos = r.out_sample;
@@ -249,47 +257,26 @@ void main(void)
             float dist = length(PL);
             Ray ray = createRay(P + N * 1e-5, dir, 0, dist-1e-3);
             // cast shadow ray, accumulate lighting if no intersection
-            if ( !traceRay( ray ) ) {
-                vec3 contrib = directLightPerpixel(P, pos, r.emission, 1.0);
+            if ( !castRay( ray ) ) {
+                vec3 contrib = directLightPerpixel(P, pos, r.out_normal, r.emission, 1.0);
                 color += contrib * r.W;
             }
         } else {
-           out_color.xyz = vec3(1.0f, 1.0f, 0.0f);
-           return;
+// ========================================
+// Uniform hemisphere sampling and shading
+// ========================================
+            vec3 dir = onb(N) * squareToUniformHemisphere(rngRndVec2(rng));
+            float pdf = pdfSquareToUniformHemisphere(dir);
+
+            Ray r = createRay(P + dir * 1e-3, dir, 0, 1e30);
+            // trace ray, accumulate lighting if intersecting emissive triangle
+            if ( traceRay( r ) ) {
+                Intersection isect = getIntersection(r);
+                float cosTheta = max(dot(dir, N), 0.0);
+                color += 9.61 * objMatDiffuse * isect.emission * cosTheta / pdf;
+            }
         }
     }
 
-    out_color.xyz = color / float(n_samples);
-
-/*
-    vec3 contrib = vec3(0);
-    vec3 pos = P;
-    
-    vec3 dir = onb(N) * squareToUniformHemisphere(rngRndVec2(rng));
-    vec3 thp = vec3(1) / pdfSquareToUniformHemisphere(dir);
-
-    Ray r = createRay(pos + N * 1e-5, dir, 0, 1e30);
-    // cast shadow ray, accumulate lighting if no intersection
-    if ( !traceRay( r ) ) {
-        contrib += thp * envmapGet(dir);
-    }
-    else {
-        Intersection isect = getIntersection(r);
-
-        dir = onb(isect.n) * squareToUniformHemisphere(rngRndVec2(rng));
-        thp *= isect.albedo * abs(dot(dir, isect.n)) / pdfSquareToUniformHemisphere(dir);
-
-        r = createRay(isect.p + isect.n * 1e-5, dir, 0, 1e30);
-
-        if ( !castRay( r )) {
-            contrib += thp * envmapGet(r.dir);
-        }
-    }
-    
-    // labertian cosine of RTE
-    float cosTheta = max(dot(dir, N), 0.0);
-    out_color.xyz = objMatAmbient * contrib * cosTheta;
-
-    */
-
+    out_color.xyz = objMatEmission + color / float(n_samples);
 }

@@ -5,6 +5,7 @@
 #include "stdafx.h"
 
 #include <vector>
+#include <exception>
 
 
 using namespace std;
@@ -29,6 +30,7 @@ public:
 	void initialize(const Scene& scene);
 	void uploadLightList2GPU();
 	void setLightListShaderUniforms(GLSLProgram* prg);
+	uint nEmissiveTriangles();
 
 private:
 	GLuint createShaderStorageBuffer(int size, GLenum usage = GL_STATIC_DRAW);

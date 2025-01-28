@@ -17,6 +17,9 @@ LightList::LightList() : totalArea(0.0f), csCdf(0), csTriangles(0) { }
 
 void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
 {
+    if (_triangles.empty()) {
+        throw exception("No emissive geometry provided!");
+    }
     triangles.clear();
     triangles = _triangles;
 
@@ -99,6 +102,11 @@ void LightList::setLightListShaderUniforms(GLSLProgram* prg)
     binding_point_index = 7;
     glShaderStorageBlockBinding(prg->getProgramObject(), block_index, binding_point_index);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_point_index, csCdf);
+}
+
+uint LightList::nEmissiveTriangles()
+{
+    return uint(triangles.size());
 }
 
 GLuint LightList::createShaderStorageBuffer(int size, GLenum usage)
