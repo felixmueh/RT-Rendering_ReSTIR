@@ -19,8 +19,8 @@ Change the algorithm used for sampling direct illumination by changing the `rend
 - SAMPLE_MODE_RIS
 - SAMPLE_MODE_STREAMING_RIS
 - SAMPLE_MODE_RESTIR
-Or use th GUI to change this while the application is running.
 
+Or use th GUI to change this while the application is running.
 
 ### ReSTIR Settings
 
@@ -34,9 +34,22 @@ Or use th GUI to change this while the application is running.
 | Threshold Position          | Relative position difference threshold.                                     | 0.1           | 0.0 - 1.0         |
 | Spatial Iterations          | Number of iterations for spatial sample reuse threshold.                                     | 2           | 1 - 5         |
 
+### Scene Selection
+Select different scenes to render in the assignment4.cpp file by changing the index:
+```c++
+[87] const vector<string> scene_names = { "cbox.obj", 
+                                          "cbox-light.obj", 
+                                          "cbox-light-many.obj", 
+                                          "cbox-torus.obj", 
+                                          "sponza-many.obj" };
+[88] const uint scene_idx = 2;
+```
+
+![Sponza comparison](imgs/comp-4-1spp-sponza.png)
+
 ### Screen Captures
 Screen captrues in PNG and PFM format can be created by adding the frame indices to captrue in the assignment4.cpp file:
 ```c++
-[79] static std::vector<int> frames_to_capture = {50};
+[85] static std::vector<int> frames_to_capture = {1,2,10,50};
 ```
 Alternatively, use the keybind `C` to capture the image that is currently displayed.
