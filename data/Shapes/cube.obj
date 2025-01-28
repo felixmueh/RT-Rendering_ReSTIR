@@ -1,0 +1,109 @@
+#==================================================
+#Geometry mesh file
+#This file has been created by PoseRay v3.11.0.436
+#3D model to POV-Ray/Moray Converter.
+#Author: FlyerX
+#Email: flyerx_2000@yahoo.com
+#Web: http://mysite.verizon.net/sfg0000/
+#==================================================
+#==================================================
+#Model Statistics:
+#Number of triangular faces..... 12
+#Number of vertices............. 8
+#Number of normals.............. 24
+#Number of UV coordinates....... 14
+#Number of lines................ 0
+#Number of materials............ 1
+#Number of groups/meshes........ 1
+#Number of subdivision faces.... 0
+#UV boundaries........ from u,v=(0.125,0)
+#                        to u,v=(0.875,1)
+#Bounding Box....... from x,y,z=(-0.2654155,-0.3128445,-0.2997605)
+#                      to x,y,z=(0.2654155,0.3128445,0.2997605)
+#                 size dx,dy,dz=(0.530831,0.625689,0.599521)
+#                  center x,y,z=(2.775558E-17,0,0)
+#                       diagonal 1.016215
+#Surface area................... 2.050986
+#             Smallest face area 0.1591222
+#              Largest face area 0.1875568
+#Memory allocated for geometry.. 9 KBytes
+# 
+#==================================================
+ 
+mtllib cube.mtl
+# vertices
+v -0.2654155 -0.3128445 0.2997605
+v 0.2654155 -0.3128445 0.2997605
+v -0.2654155 0.3128445 0.2997605
+v 0.2654155 0.3128445 0.2997605
+v -0.2654155 0.3128445 -0.2997605
+v 0.2654155 0.3128445 -0.2997605
+v -0.2654155 -0.3128445 -0.2997605
+v 0.2654155 -0.3128445 -0.2997605
+# normal vectors
+vn 0 0 1
+vn 0 0 1
+vn 0 0 1
+vn 0 0 1
+vn 0 1 0
+vn 0 1 0
+vn 0 1 0
+vn 0 1 0
+vn 0 0 -1
+vn 0 0 -1
+vn 0 0 -1
+vn 0 0 -1
+vn 0 -1 0
+vn 0 -1 0
+vn 0 -1 0
+vn 0 -1 0
+vn 1 0 0
+vn 1 0 0
+vn 1 0 0
+vn 1 0 0
+vn -1 0 0
+vn -1 0 0
+vn -1 0 0
+vn -1 0 0
+# uv coordinates
+vt 0.375 0
+vt 0.625 0
+vt 0.375 0.25
+vt 0.625 0.25
+vt 0.375 0.5
+vt 0.625 0.5
+vt 0.375 0.75
+vt 0.625 0.75
+vt 0.375 1
+vt 0.625 1
+vt 0.875 0
+vt 0.875 0.25
+vt 0.125 0
+vt 0.125 0.25
+# faces
+g pCube1
+usemtl initialShadingGroup
+f 1/1/1 2/2/2 4/4/3 
+f 1/1/1 4/4/3 3/3/4 
+f 3/3/5 4/4/6 6/6/7 
+f 3/3/5 6/6/7 5/5/8 
+f 5/5/9 6/6/10 8/8/11 
+f 5/5/9 8/8/11 7/7/12 
+f 7/7/13 8/8/14 2/10/15 
+f 7/7/13 2/10/15 1/9/16 
+f 2/2/17 8/11/18 6/12/19 
+f 2/2/17 6/12/19 4/4/20 
+f 7/13/21 1/1/22 3/3/23 
+f 7/13/21 3/3/23 5/14/24 
+ 
+#==================================================
+#PoseRay Settings Block v1.1
+#camera,28.36092,FALSE,FALSE,-1.0,1.0,0.2324915,0.3128445,1.7316,0,-25,45,0.2324915,0.3128445,-0.3008305,995,873
+#number_of_lights,0
+#headlightintensity,1
+#background,0,16777215,"",0
+#placeholder_count,0
+#ground,FALSE,0,16777215
+#groupflags,"pCube1",TRUE,TRUE
+#end of PoseRay Settings Block
+#==================================================

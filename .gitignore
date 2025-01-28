@@ -1,10 +1,4 @@
 # Ignore the data directory
-data/
-
-# Allow .obj and .mtl files inside data/Assignment4/
-!data/Assignment4/
-!data/Assignment4/*.obj
-!data/Assignment4/*.mtl
 
 /Assignment4
 

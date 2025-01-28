@@ -1,0 +1,87 @@
+#==================================================
+#Geometry mesh file
+#This file has been created by PoseRay v3.11.0.436
+#3D model to POV-Ray/Moray Converter.
+#Author: FlyerX
+#Email: flyerx_2000@yahoo.com
+#Web: http://mysite.verizon.net/sfg0000/
+#==================================================
+#==================================================
+#Model Statistics:
+#Number of triangular faces..... 6
+#Number of vertices............. 5
+#Number of normals.............. 16
+#Number of UV coordinates....... 9
+#Number of lines................ 0
+#Number of materials............ 1
+#Number of groups/meshes........ 1
+#Number of subdivision faces.... 0
+#UV boundaries........ from u,v=(0.25,0)
+#                        to u,v=(0.75,1)
+#Bounding Box....... from x,y,z=(-0.6678175,-0.333909,-0.667818)
+#                      to x,y,z=(0.6678175,0.333909,0.667818)
+#                 size dx,dy,dz=(1.335635,0.667818,1.335636)
+#                  center x,y,z=(-5.551115E-17,0,0)
+#                       diagonal 2.003453
+#Surface area................... 2.436883
+#             Smallest face area 0.3862304
+#              Largest face area 0.4459805
+#Memory allocated for geometry.. 8 KBytes
+# 
+#==================================================
+ 
+mtllib pyramid.mtl
+# vertices
+v 5E-7 -0.333909 -0.667818
+v -0.6678175 -0.333909 0
+v -5E-7 -0.333909 0.667818
+v 0.6678175 -0.333909 0
+v -5E-7 0.333909 0
+# normal vectors
+vn 0 -1 0
+vn 0 -1 0
+vn 0 -1 0
+vn 0 -1 0
+vn -0.5773503 0.5773503 -0.5773503
+vn -0.5773503 0.5773503 -0.5773503
+vn -0.5773503 0.5773503 -0.5773503
+vn -0.5773503 0.5773503 0.5773503
+vn -0.5773503 0.5773503 0.5773503
+vn -0.5773503 0.5773503 0.5773503
+vn 0.5773503 0.5773503 0.5773503
+vn 0.5773503 0.5773503 0.5773503
+vn 0.5773503 0.5773503 0.5773503
+vn 0.5773503 0.5773503 -0.5773503
+vn 0.5773503 0.5773503 -0.5773503
+vn 0.5773503 0.5773503 -0.5773503
+# uv coordinates
+vt 0.5 0
+vt 0.25 0.25
+vt 0.5 0.5
+vt 0.75 0.25
+vt 0.25 0.5
+vt 0.375 0.5
+vt 0.625 0.5
+vt 0.75 0.5
+vt 0.5 1
+# faces
+g pPyramid1
+usemtl initialShadingGroup
+f 1/1/1 4/4/2 3/3/3 
+f 1/1/1 3/3/3 2/2/4 
+f 1/5/5 2/6/6 5/9/7 
+f 2/6/8 3/3/9 5/9/10 
+f 3/3/11 4/7/12 5/9/13 
+f 4/7/14 1/8/15 5/9/16 
+ 
+#==================================================
+#PoseRay Settings Block v1.1
+#camera,28.36092,FALSE,FALSE,-1.0,1.0,-0.4557025,0,3.637148,-5.546194,-31.76245,56.61678,-0.4557025,0,-0.369759,995,873
+#number_of_lights,0
+#headlightintensity,1
+#background,0,16777215,"",0
+#placeholder_count,0
+#ground,FALSE,0,16777215
+#groupflags,"pPyramid1",TRUE,TRUE
+#end of PoseRay Settings Block
+#==================================================

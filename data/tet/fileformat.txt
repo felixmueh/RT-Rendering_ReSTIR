@@ -1,0 +1,10 @@
+Each file is a list of raw float32 values:
+* 16 values (64 byte) per tetrahedron / cell
+* The total number of cells is size_of_file_in_byte / 64
+* Each cell consists of 4 points in space.
+* Each point consists of 3 float32 values: X Y Z Attribute
+* The attributes are normalized to the [0, 1] interval
+
+
+
+Cell0_Point0_X Cell0_Point0_Y Cell0_Point0_Z Cell0_Point0_ATTR Cell0_Point1_X Cell0_Point1_Y Cell0_Point1_Z Cell0_Point1_ATTR ... Cell237_Point0_X Cell237_Point0_Y ...
