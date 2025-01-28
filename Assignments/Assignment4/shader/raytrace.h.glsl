@@ -15,6 +15,7 @@ struct Ray {
 struct Intersection {
 	vec3 p, n;
 	vec3 albedo;
+	vec3 emission;
 };
 
 struct MaterialISPC {
@@ -503,6 +504,7 @@ Intersection getIntersection(Ray ray) {
 	isect.p = w * p0 + u * p1 + v * p2;
 	isect.n = normalize(u * n0 + v * n1 + w * n2);
 	isect.albedo = vec3(mat.data[1], mat.data[2], mat.data[3]);
+	isect.emission = vec3(mat.data[9], mat.data[10], mat.data[11]);
 
 	return isect;
 }
