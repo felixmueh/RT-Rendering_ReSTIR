@@ -36,7 +36,7 @@ private:
 private:
 	vector<CpuEmissiveTriangle> triangles;	// list of emissive triangles
 	vector<float> aliasProb;				// alias probabilities for discrete sampling
-	vector<float> aliasIndex;				// alias indices for discrete sampling
+	vector<uint32_t> aliasIndex;				// alias indices for discrete sampling
 	float totalArea;						// total area of the triangles
 	GLuint csTriangles;						// gpu memory of traingles
 	GLuint csCdf;							// gpu memory of cumulative areas
