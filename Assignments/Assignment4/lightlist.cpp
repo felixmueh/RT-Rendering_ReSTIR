@@ -18,7 +18,8 @@ LightList::LightList() : totalArea(0.0f), csCdf(0), csTriangles(0) { }
 void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
 {
     if (_triangles.empty()) {
-        throw exception("No emissive geometry provided!");
+        std::cout << "No emissive geometry provided!" << std::endl;
+        exit(1);
     }
     triangles.clear();
     triangles = _triangles;
@@ -38,7 +39,6 @@ void LightList::initialize(const vector<CpuEmissiveTriangle>& _triangles)
         cumulativeSum += tri.computeArea();
         cdf.push_back(cumulativeSum / totalArea); // Normalize by total area
     }
-    std::cout << cdf.back();
     assert(cdf.back() >= (1.0 - 1e-10));
     assert(cdf.back() <= (1.0 + 1e-10));
     cdf.back() = 1.0f;

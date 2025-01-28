@@ -11,7 +11,10 @@
 ////////////////////////////////////////////////////////////
 
 #include <iterator>
+
+#ifdef _WIN32
 #include <glm/gtc/matrix_transform.hpp>
+#endif
 
 #include "stdafx.h"
 
