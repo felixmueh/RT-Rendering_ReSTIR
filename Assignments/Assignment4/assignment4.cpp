@@ -312,7 +312,7 @@ public:
     case SAMPLE_MODE_RESTIR: technique_name = "ReSTIR"; break;
     default: technique_name = "UniformHemisphere";
     };
-    string out_folder = (filesystem::path("captures") / technique_name).string();
+    string out_folder = (filesystem::path("captures") / scene_names[scene_idx] / technique_name).string();
     capture = make_shared<FrameCapture>(captureFBO, width, height, out_folder);
     
     // zoom in a bit

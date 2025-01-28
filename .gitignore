@@ -28,3 +28,5 @@ Thumbs.db
 *.sdf
 *.VC.db
 *.log
+
+__pycache__
